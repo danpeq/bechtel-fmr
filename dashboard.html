@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard gerencial - FMR</title>
+    <link rel="stylesheet" href="static/css/dashboard.css">
+</head>
+<body>
+    <main class="dashboard-shell">
+        <header class="dashboard-header">
+            <div>
+                <p class="eyebrow">CONTROL DE PROCURA</p>
+                <h1>Dashboard gerencial</h1>
+                <p class="header-copy">Lectura ejecutiva de FMR, PO, avance de procurement y riesgos de entrega.</p>
+            </div>
+            <div class="file-control">
+                <label for="dashboard-file">Archivo de análisis</label>
+                <input id="dashboard-file" type="file" accept=".xlsx,.xlsm">
+                <span id="dashboard-status">Seleccione un Excel para comenzar.</span>
+            </div>
+        </header>
+
+        <section id="dashboard-empty" class="empty-state">
+            <div class="empty-mark">XLS</div>
+            <div>
+                <h2>Cargue un archivo para ver el tablero</h2>
+                <p>El archivo se procesa localmente en este navegador. Ningún dato se envía al servidor.</p>
+            </div>
+        </section>
+
+        <section id="dashboard-content" class="dashboard-content" hidden>
+            <div class="dashboard-toolbar">
+                <div>
+                    <span class="section-kicker">RESUMEN EJECUTIVO</span>
+                    <h2 id="loaded-file">Archivo cargado</h2>
+                </div>
+                <div class="last-update" id="data-scope">FMR_Normalizado</div>
+            </div>
+
+            <section class="metric-grid" aria-label="Indicadores principales">
+                <article class="metric-card metric-primary">
+                    <span class="metric-label">FMR activas</span>
+                    <strong id="metric-fmr">-</strong>
+                    <span id="metric-fmr-note" class="metric-note">-</span>
+                </article>
+                <article class="metric-card">
+                    <span class="metric-label">SubSistemas</span>
+                    <strong id="metric-subsystems">-</strong>
+                    <span class="metric-note">con trazabilidad FMR</span>
+                </article>
+                <article class="metric-card">
+                    <span class="metric-label">PO identificadas</span>
+                    <strong id="metric-po">-</strong>
+                    <span id="metric-po-note" class="metric-note">-</span>
+                </article>
+                <article class="metric-card metric-alert">
+                    <span class="metric-label">Sin ETA</span>
+                    <strong id="metric-no-eta">-</strong>
+                    <span class="metric-note">requieren seguimiento</span>
+                </article>
+            </section>
+
+            <section class="insight-strip" id="insight-strip">
+                <span class="insight-pulse"></span>
+                <strong id="headline-insight">Analizando el estado de la cartera...</strong>
+                <span id="headline-detail"></span>
+            </section>
+
+            <div class="dashboard-grid dashboard-grid-main">
+                <section class="panel status-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-kicker">MADUREZ</span>
+                            <h2>FMR por status</h2>
+                        </div>
+                        <span class="panel-caption">FMR únicas</span>
+                    </div>
+                    <div id="status-chart" class="bar-chart"></div>
+                </section>
+
+                <section class="panel delivery-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-kicker">ENTREGA</span>
+                            <h2>Señales de riesgo</h2>
+                        </div>
+                        <span class="panel-caption">PO con información</span>
+                    </div>
+                    <div id="delivery-chart" class="donut-layout"></div>
+                </section>
+            </div>
+
+            <div class="dashboard-grid dashboard-grid-secondary">
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-kicker">PLANIFICACIÓN</span>
+                            <h2>FMR por 3week</h2>
+                        </div>
+                    </div>
+                    <div id="week-chart" class="bar-chart compact-chart"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <span class="section-kicker">CONCENTRACIÓN</span>
+                            <h2>SubSistemas con mayor carga</h2>
+                        </div>
+                        <span class="panel-caption">FMR únicas</span>
+                    </div>
+                    <div id="subsystem-table" class="rank-list"></div>
+                </section>
+            </div>
+
+            <section class="panel risk-panel">
+                <div class="panel-heading">
+                    <div>
+                        <span class="section-kicker">ATENCIÓN GERENCIAL</span>
+                        <h2>FMR con mayor exposición</h2>
+                    </div>
+                    <span class="panel-caption">Sin ETA o ETA futura</span>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>FMR</th>
+                                <th>SubSistemas</th>
+                                <th>PO</th>
+                                <th>Sin ETA</th>
+                                <th>ETA futura</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="risk-table"></tbody>
+                    </table>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="static/js/workbook-store.js"></script>
+    <script src="static/js/dashboard.js"></script>
+</body>
+</html>

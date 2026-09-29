@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Análisis de FMR - Procura
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="static/css/style.css"
+    >
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+
+    <!-- ==================================================
+         HEADER
+    =================================================== -->
+
+    <header class="main-header">
+
+        <h1>
+            Análisis de FMR - Procura
+        </h1>
+
+        <a
+            class="dashboard-button"
+            href="dashboard.html"
+        >
+            Dashboard gerencial
+        </a>
+
+    </header>
+
+    <section
+        id="carga-datos"
+        class="carga-datos"
+    >
+
+        <div>
+            <strong>Archivo de análisis</strong>
+            <span id="estado-carga">
+                Seleccione un archivo Excel para iniciar el análisis.
+            </span>
+        </div>
+
+        <input
+            id="archivo-excel"
+            type="file"
+            accept=".xlsx,.xlsm"
+        >
+
+    </section>
+
+
+    <!-- ==================================================
+         FILTROS PRINCIPALES
+    =================================================== -->
+
+    <div class="filtros-principales">
+
+
+        <!-- ==================================================
+             3WEEK
+        =================================================== -->
+
+        <div class="filtro-item">
+
+            <label for="threeweek-select">
+                Seleccione 3week
+            </label>
+
+            <select
+                id="threeweek-select"
+                disabled
+            >
+
+                <option value="">
+                    Seleccione una fecha
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- ==================================================
+             BÚSQUEDA FMR
+        =================================================== -->
+
+        <div class="filtro-item">
+
+            <label for="fmr-search">
+                Búsqueda de FMR
+            </label>
+
+            <input
+                type="text"
+                id="fmr-search"
+                class="fmr-search-input"
+                disabled
+                list="fmr-options"
+                placeholder="Seleccione o escriba un FMR"
+                autocomplete="off"
+            >
+
+            <datalist
+                id="fmr-options"
+            >
+            </datalist>
+
+        </div>
+
+    </div>
+
+        <div
+            id="lista-fmrs-general"
+            class="fmrs-general-container"
+        >
+        </div>
+
+
+    <!-- ==================================================
+         RESULTADO 3WEEK
+    =================================================== -->
+
+    <section
+        id="info-subsistema"
+        class="info-section"
+    >
+
+        <h2>
+            SubSistemas
+        </h2>
+
+
+        <div
+            id="lista-subsistemas"
+            class="subsistema-list"
+        >
+        </div>
+
+
+        <div
+            id="subsistema-seleccionado"
+            class="subsistema-seleccionado"
+        >
+
+            <h3>
+                SubSistema seleccionado
+            </h3>
+
+
+            <div
+                id="nombre-subsistema"
+                class="info-value"
+            >
+            </div>
+
+
+            <div class="fmr-section">
+
+                <h3>
+                    FMR Asociado
+                </h3>
+
+
+                <div
+                    id="lista-fmr"
+                    class="fmr-list"
+                >
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ==================================================
+         RESULTADO BÚSQUEDA FMR
+    =================================================== -->
+
+    <section
+        id="resultado-fmr-search"
+        class="info-section"
+    >
+
+        <h2>
+            FMR encontrado
+        </h2>
+
+
+        <!-- ==================================================
+            RESUMEN FMR
+        =================================================== -->
+
+        <div
+            id="fmr-encontrado"
+            class="fmr-encontrado-container"
+        >
+        </div>
+
+
+        <!-- ==================================================
+            SUBSISTEMAS
+        =================================================== -->
+
+        <div
+            id="subsistemas-del-fmr"
+            class="fmr-search-subsistemas"
+        >
+
+            <h3>
+                SubSistemas donde aparece
+            </h3>
+
+
+            <div
+                id="lista-subsistemas-fmr"
+                class="subsistema-list"
+            >
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ==================================================
+         DETALLE FMR
+    =================================================== -->
+
+    <section
+        id="detalle-fmr"
+        class="detalle-section"
+    >
+
+
+        <!-- ==================================================
+             PO
+        =================================================== -->
+
+        <div class="po-section">
+
+            <h3>
+                PO Asociadas
+            </h3>
+
+
+            <div
+                id="lista-po"
+                class="po-list"
+            >
+            </div>
+
+        </div>
+
+
+        <!-- ==================================================
+             PROCUREMENT
+        =================================================== -->
+
+        <div class="procurement-section">
+
+            <h3>
+                Información de Procurement
+            </h3>
+
+
+            <div
+                id="lista-procurement"
+                class="procurement-list"
+            >
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<script
+    src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"
+></script>
+
+<script
+    src="static/js/workbook-store.js"
+></script>
+
+<script
+    src="static/js/app.js"
+></script>
+
+</body>
+
+</html>
