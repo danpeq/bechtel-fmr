@@ -12,7 +12,9 @@ function asDate(value) {
         return value;
     }
     if (typeof value === "number") {
-        return new Date(Date.UTC(1899, 11, 30) + value * 86400000);
+        const date = new Date(1899, 11, 30);
+        date.setDate(date.getDate() + Math.floor(value));
+        return date;
     }
     const raw = text(value);
     if (!raw) {
@@ -54,6 +56,19 @@ function splitPO(value) {
     });
 }
 
+function splitETAs(value) {
+    let dates;
+    if (value instanceof Date || typeof value === "number") {
+        const parsed = asDate(value);
+        dates = parsed ? [parsed] : [];
+    } else {
+        dates = text(value).split(/[\n;,]+/).map(asDate).filter(Boolean);
+    }
+    return dates.map(function(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    });
+}
+
 function escapeHtml(value) {
     return text(value).replace(/[&<>\"']/g, function(character) {
         return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[character];
@@ -71,7 +86,7 @@ function buildModel(workbook) {
         cellDates: true
     }).map(cleanRow);
     const validRows = rows.filter(function(row) {
-        return text(row.FMR) && !text(row.FMR).includes("…") && text(row.SubSistema);
+        return text(row.FMR) && !text(row.FMR).includes("…");
     });
     const fmrs = unique(validRows.map(function(row) { return row.FMR; }));
     const subsystems = unique(validRows.map(function(row) { return row.SubSistema; }));
@@ -82,6 +97,50 @@ function buildModel(workbook) {
             poRows.push({ row, po });
         });
     });
+
+    const etaEntries = [];
+    const etaKeys = new Set();
+    validRows.forEach(function(row) {
+        const pos = splitPO(row.PO);
+        splitETAs(row.ETA).forEach(function(eta) {
+            (pos.length ? pos : ["Sin PO"]).forEach(function(po) {
+                const key = `${text(row.FMR)}|${po}|${eta.getFullYear()}-${eta.getMonth()}-${eta.getDate()}`;
+                if (!etaKeys.has(key)) {
+                    etaKeys.add(key);
+                    etaEntries.push({ eta, fmr: text(row.FMR), po });
+                }
+            });
+        });
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekStart = new Date(today);
+    weekStart.setDate(today.getDate() - (today.getDay() + 6) % 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const monthName = function(date) {
+        return new Intl.DateTimeFormat("es", { month: "long", year: "numeric" }).format(date);
+    };
+    const makePeriod = function(label, range, start, end) {
+        return {
+            label,
+            range,
+            entries: etaEntries.filter(function(entry) {
+                return entry.eta >= start && entry.eta <= end;
+            }).sort(function(a, b) {
+                return a.eta - b.eta || a.fmr.localeCompare(b.fmr) || a.po.localeCompare(b.po);
+            })
+        };
+    };
+    const etaPeriods = [
+        makePeriod("Semana presente", `${dateLabel(weekStart)} - ${dateLabel(weekEnd)}`, weekStart, weekEnd),
+        makePeriod("Mes presente", monthName(monthStart), monthStart, new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)),
+        makePeriod("Próximo mes", monthName(nextMonthStart), nextMonthStart, new Date(today.getFullYear(), today.getMonth() + 2, 0, 23, 59, 59, 999)),
+        makePeriod("Próximos dos meses", `${monthName(nextMonthStart)} - ${monthName(new Date(today.getFullYear(), today.getMonth() + 2, 1))}`, nextMonthStart, new Date(today.getFullYear(), today.getMonth() + 3, 0, 23, 59, 59, 999))
+    ];
 
     const poKeys = unique(poRows.map(function(item) {
         return `${text(item.row.FMR)}|${item.po}`;
@@ -133,6 +192,9 @@ function buildModel(workbook) {
     const subsystemCounts = {};
     validRows.forEach(function(row) {
         const subsystem = text(row.SubSistema);
+        if (!subsystem) {
+            return;
+        }
         subsystemCounts[subsystem] = subsystemCounts[subsystem] || new Set();
         subsystemCounts[subsystem].add(text(row.FMR));
     });
@@ -145,6 +207,7 @@ function buildModel(workbook) {
         summary: fmrSummary,
         statusCounts,
         delivery,
+        etaPeriods,
         weeks: Object.entries(weeks).map(function([label, values]) { return { label, count: values.size }; }),
         subsystemCounts: Object.entries(subsystemCounts).map(function([label, values]) { return { label, count: values.size }; })
     };
@@ -181,6 +244,18 @@ function renderDelivery(delivery, totalPO) {
         }).join("")}</div>`;
 }
 
+function renderEtaPeriods(periods) {
+    document.getElementById("eta-periods").innerHTML = periods.map(function(period) {
+        const entries = period.entries.map(function(entry) {
+            return `<li><time>${dateLabel(entry.eta)}</time><span><strong>${escapeHtml(entry.fmr)}</strong><small>PO ${escapeHtml(entry.po)}</small></span></li>`;
+        }).join("");
+        return `<article class="eta-period-card">
+            <header><div><h3>${escapeHtml(period.label)}</h3><p>${escapeHtml(period.range)}</p></div><strong class="eta-count">${period.entries.length}</strong></header>
+            ${entries ? `<ul>${entries}</ul>` : '<p class="eta-empty">Sin fechas ETA en este periodo.</p>'}
+        </article>`;
+    }).join("");
+}
+
 function renderDashboard(model, filename) {
     const totalNoEta = model.delivery.noEta;
     const totalFuture = model.delivery.futureEta;
@@ -210,6 +285,7 @@ function renderDashboard(model, filename) {
 
     renderBars("status-chart", statusItems, Math.max(...statusItems.map(function(item) { return item.count; }), 1));
     renderDelivery(model.delivery, model.poCount);
+    renderEtaPeriods(model.etaPeriods);
     renderBars("week-chart", weekItems, Math.max(...weekItems.map(function(item) { return item.count; }), 1));
     document.getElementById("subsystem-table").innerHTML = subsystemItems.map(function(item, index) {
         return `<div class="rank-row"><span class="rank-number">${String(index + 1).padStart(2, "0")}</span><span class="rank-name" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</span><span class="rank-count">${item.count}</span></div>`;

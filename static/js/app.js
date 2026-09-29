@@ -8,12 +8,20 @@ const estado = {
     normalizado: [],
     relaciones: [],
     detalle: [],
-    semanas: []
+    semanas: [],
+    fmrs: []
 };
+
+const FMRS_POR_PAGINA = 50;
+let paginaActualFMR = 0;
 
 const threeweekSelect = document.getElementById("threeweek-select");
 const fmrSearch = document.getElementById("fmr-search");
 const listaFMRsGeneral = document.getElementById("lista-fmrs-general");
+const paginacionFMR = document.getElementById("paginacion-fmrs");
+const paginaFMRLabel = document.getElementById("pagina-fmrs-label");
+const paginaFMRAnterior = document.getElementById("pagina-fmrs-anterior");
+const paginaFMRSiguiente = document.getElementById("pagina-fmrs-siguiente");
 const fmrOptions = document.getElementById("fmr-options");
 const infoSubsistema = document.getElementById("info-subsistema");
 const listaSubsistemas = document.getElementById("lista-subsistemas");
@@ -39,6 +47,12 @@ fmrSearch.disabled = true;
 
 function texto(valor) {
     return valor === null || valor === undefined ? "" : String(valor).trim();
+}
+
+function escaparHTML(valor) {
+    return texto(valor).replace(/[&<>"']/g, function(caracter) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[caracter];
+    });
 }
 
 function fecha(valor) {
@@ -104,18 +118,22 @@ function prepararDatos(workbook) {
     }).map(limpiarFila);
     estado.relaciones = [];
     estado.detalle = [];
+    estado.fmrs = [];
 
     estado.normalizado.forEach(function(fila) {
         const subsistema = texto(fila.SubSistema);
         const fmr = texto(fila.FMR);
-        if (!subsistema || !fmr || fmr.includes("…")) {
+        if (!fmr || fmr.includes("…")) {
             return;
         }
 
+        estado.fmrs.push(fmr);
         const pos = separarPO(fila.PO);
-        pos.forEach(function(po) {
-            estado.relaciones.push({ subsistema, fmr, po });
-        });
+        if (subsistema) {
+            pos.forEach(function(po) {
+                estado.relaciones.push({ subsistema, fmr, po });
+            });
+        }
         if (pos.length === 0) {
             estado.detalle.push({ ...fila, SubSistema: subsistema, FMR: fmr, PO: "" });
         } else {
@@ -125,6 +143,7 @@ function prepararDatos(workbook) {
         }
     });
 
+    estado.fmrs = valoresUnicos(estado.fmrs);
     estado.relaciones = estado.relaciones.filter(function(relacion, indice, relaciones) {
         return relaciones.findIndex(function(item) {
             return item.subsistema === relacion.subsistema
@@ -180,16 +199,14 @@ function obtenerEstadoPO(fmr, po, subsistema) {
 }
 
 function obtenerDatosFMR(fmr, subsistema = "") {
-    const relaciones = estado.relaciones.filter(function(relacion) {
-        return relacion.fmr === fmr && (!subsistema || relacion.subsistema === subsistema);
+    const filasFMR = estado.detalle.filter(function(fila) {
+        return fila.FMR === fmr && (!subsistema || fila.SubSistema === subsistema);
     });
-    const pos = relaciones.map(function(relacion) {
-        return { po: relacion.po, ...obtenerEstadoPO(fmr, relacion.po, subsistema) };
+    const pos = valoresUnicos(filasFMR.map(function(fila) { return fila.PO; })).map(function(po) {
+        return { po, ...obtenerEstadoPO(fmr, po, subsistema) };
     });
     const colores = [...new Set(pos.map(function(item) { return item.color; }))];
-    const procurement = estado.detalle.filter(function(fila) {
-        return fila.FMR === fmr && (!subsistema || fila.SubSistema === subsistema);
-    }).map(function(fila) {
+    const procurement = filasFMR.map(function(fila) {
         return {
             po: texto(fila.PO),
             status: texto(fila.STATUS),
@@ -198,16 +215,17 @@ function obtenerDatosFMR(fmr, subsistema = "") {
             eta: texto(fila.ETA),
             on_site: texto(fila["ON SITE"]),
             entregado: texto(fila.ENTREGADO),
-            descripcion: texto(fila.DESCRIPCION)
+            descripcion: texto(fila.DESCRIPCION),
+            comentarios: texto(fila.COMENTARIOS)
         };
     });
 
     return {
-        encontrado: estado.relaciones.some(function(item) { return item.fmr === fmr; }),
+        encontrado: estado.fmrs.includes(fmr),
         fmr,
-        subsistemas: valoresUnicos(estado.relaciones.filter(function(item) {
-            return item.fmr === fmr;
-        }).map(function(item) { return item.subsistema; })),
+        subsistemas: valoresUnicos(estado.normalizado.filter(function(fila) {
+            return texto(fila.FMR) === fmr;
+        }).map(function(fila) { return fila.SubSistema; })),
         pos,
         total_po: pos.length,
         descripcion: texto(procurement.find(function(item) { return item.descripcion; })?.descripcion),
@@ -236,13 +254,22 @@ function crearBoton(textoBoton, clase, color, alClick) {
 
 function cargarTodasLasFMR() {
     listaFMRsGeneral.innerHTML = "";
-    valoresUnicos(estado.relaciones.map(function(item) { return item.fmr; })).forEach(function(fmr) {
+    const totalPaginas = Math.max(1, Math.ceil(estado.fmrs.length / FMRS_POR_PAGINA));
+    paginaActualFMR = Math.min(paginaActualFMR, totalPaginas - 1);
+    const inicio = paginaActualFMR * FMRS_POR_PAGINA;
+
+    estado.fmrs.slice(inicio, inicio + FMRS_POR_PAGINA).forEach(function(fmr) {
         const datos = obtenerDatosFMR(fmr);
         listaFMRsGeneral.appendChild(crearBoton(fmr, "fmr-general-item", obtenerColorFMR(datos), function() {
             fmrSearch.value = fmr;
             buscarFMR(fmr);
         }));
     });
+
+    paginacionFMR.hidden = estado.fmrs.length <= FMRS_POR_PAGINA;
+    paginaFMRLabel.textContent = `${paginaActualFMR + 1} / ${totalPaginas}`;
+    paginaFMRAnterior.disabled = paginaActualFMR === 0;
+    paginaFMRSiguiente.disabled = paginaActualFMR >= totalPaginas - 1;
 }
 
 function cargar3Week() {
@@ -322,14 +349,15 @@ function mostrarDetalleFMR(datos) {
     detalleFMR.style.display = "block";
     fmrEncontrado.innerHTML = `
         <div class="fmr-summary-container">
-            <div class="total-po-card"><div class="summary-label">FMR</div><div class="summary-number">${datos.fmr}</div></div>
+            <div class="total-po-card"><div class="summary-label">FMR</div><div class="summary-number">${escaparHTML(datos.fmr)}</div></div>
             <div class="total-po-card"><div class="summary-label">TOTAL PO</div><div class="summary-number">${datos.total_po}</div></div>
-            <div class="descripcion-fmr"><div class="summary-label">DESCRIPCIÓN</div><div class="descripcion-fmr-text">${datos.descripcion || "Sin descripción"}</div></div>
+            <div class="descripcion-fmr"><div class="summary-label">DESCRIPCIÓN</div><div class="descripcion-fmr-text">${escaparHTML(datos.descripcion) || "Sin descripción"}</div></div>
         </div>`;
     listaPO.innerHTML = "";
     listaProcurement.innerHTML = "";
     if (!datos.pos.length) {
         listaPO.innerHTML = "<p class=\"mensaje-vacio\">Esta FMR no tiene PO asociada.</p>";
+        mostrarProcurementPorPO(datos.procurement, "");
         return;
     }
     datos.pos.forEach(function(item) {
@@ -349,22 +377,40 @@ function seleccionarPO(boton, po, procurement) {
 function mostrarProcurementPorPO(procurement, po) {
     listaProcurement.innerHTML = "";
     const registros = procurement.filter(function(registro) { return registro.po === po; });
+    const comentariosFMR = procurement.filter(function(registro) {
+        return !registro.po && registro.comentarios;
+    });
     if (!registros.length) {
         listaProcurement.innerHTML = "<p class=\"mensaje-vacio\">No hay información de Procurement para esta PO.</p>";
         return;
     }
     registros.forEach(function(registro) {
-        const card = document.createElement("div");
-        card.classList.add("procurement-card");
-        card.innerHTML = `
-            <div class="procurement-field"><span class="procurement-label">STATUS</span><span class="procurement-value">${registro.status || "-"}</span></div>
-            <div class="procurement-field"><span class="procurement-label">BUYER</span><span class="procurement-value">${registro.buyer || "-"}</span></div>
-            <div class="procurement-field"><span class="procurement-label">EXPEDITOR</span><span class="procurement-value">${registro.expeditor || "-"}</span></div>
-            <div class="procurement-field"><span class="procurement-label">ETA</span><span class="procurement-value">${registro.eta || "-"}</span></div>
-            <div class="procurement-field"><span class="procurement-label">ON SITE</span><span class="procurement-value">${registro.on_site || "-"}</span></div>
-            <div class="procurement-field"><span class="procurement-label">ENTREGADO</span><span class="procurement-value">${registro.entregado || "-"}</span></div>
-            <div class="descripcion-procurement"><span class="procurement-label">DESCRIPCION</span><div class="descripcion-value">${registro.descripcion || "Sin descripción"}</div></div>`;
-        listaProcurement.appendChild(card);
+        const record = document.createElement("div");
+        record.classList.add("procurement-record");
+        const comentarios = [];
+        if (registro.comentarios) {
+            comentarios.push(`<div><strong>${registro.po ? "PO" : "FMR"}:</strong> ${escaparHTML(registro.comentarios)}</div>`);
+        }
+        if (registro.po) {
+            comentariosFMR.forEach(function(comentario) {
+                comentarios.push(`<div><strong>FMR:</strong> ${escaparHTML(comentario.comentarios)}</div>`);
+            });
+        }
+        record.innerHTML = `
+            <div class="procurement-card">
+                <div class="procurement-field"><span class="procurement-label">STATUS</span><span class="procurement-value">${escaparHTML(registro.status) || "-"}</span></div>
+                <div class="procurement-field"><span class="procurement-label">BUYER</span><span class="procurement-value">${escaparHTML(registro.buyer) || "-"}</span></div>
+                <div class="procurement-field"><span class="procurement-label">EXPEDITOR</span><span class="procurement-value">${escaparHTML(registro.expeditor) || "-"}</span></div>
+                <div class="procurement-field"><span class="procurement-label">ETA</span><span class="procurement-value">${escaparHTML(registro.eta) || "-"}</span></div>
+                <div class="procurement-field"><span class="procurement-label">ON SITE</span><span class="procurement-value">${escaparHTML(registro.on_site) || "-"}</span></div>
+                <div class="procurement-field"><span class="procurement-label">ENTREGADO</span><span class="procurement-value">${escaparHTML(registro.entregado) || "-"}</span></div>
+                <div class="descripcion-procurement"><span class="procurement-label">DESCRIPCION</span><div class="descripcion-value">${escaparHTML(registro.descripcion) || "Sin descripción"}</div></div>
+            </div>
+            <aside class="comments-card">
+                <span class="procurement-label">COMENTARIOS</span>
+                <div class="comments-value">${comentarios.join("") || "Sin comentarios"}</div>
+            </aside>`;
+        listaProcurement.appendChild(record);
     });
 }
 
@@ -381,7 +427,7 @@ function buscarFMR(fmr) {
     fmrEncontrado.innerHTML = "";
     listaSubsistemasFMR.innerHTML = "";
     if (!datos.encontrado) {
-        fmrEncontrado.innerHTML = `<p class="mensaje-error">No se encontró la FMR ${fmr}.</p>`;
+        fmrEncontrado.innerHTML = `<p class="mensaje-error">No se encontró la FMR ${escaparHTML(fmr)}.</p>`;
         return;
     }
     fmrEncontrado.appendChild(crearBoton(datos.fmr, "fmr-item", obtenerColorFMR(datos), function() {
@@ -407,7 +453,7 @@ function buscarFMR(fmr) {
 
 function cargarListaFMR() {
     fmrOptions.innerHTML = "";
-    valoresUnicos(estado.relaciones.map(function(item) { return item.fmr; })).forEach(function(fmr) {
+    estado.fmrs.forEach(function(fmr) {
         const option = document.createElement("option");
         option.value = fmr;
         fmrOptions.appendChild(option);
@@ -433,6 +479,7 @@ async function procesarArchivoLocal(contenido, nombre, guardar = true) {
         const workbook = XLSX.read(contenido, { type: "array", cellDates: true });
         prepararDatos(workbook);
         estado.cargado = true;
+        paginaActualFMR = 0;
         threeweekSelect.disabled = false;
         fmrSearch.disabled = false;
         estadoCarga.textContent = `${nombre} cargado. El análisis se ejecuta en el navegador.`;
@@ -500,4 +547,18 @@ fmrSearch.addEventListener("keydown", function(event) {
 
 fmrSearch.addEventListener("change", function() {
     buscarFMR(this.value);
+});
+
+paginaFMRAnterior.addEventListener("click", function() {
+    if (paginaActualFMR > 0) {
+        paginaActualFMR -= 1;
+        cargarTodasLasFMR();
+    }
+});
+
+paginaFMRSiguiente.addEventListener("click", function() {
+    if ((paginaActualFMR + 1) * FMRS_POR_PAGINA < estado.fmrs.length) {
+        paginaActualFMR += 1;
+        cargarTodasLasFMR();
+    }
 });

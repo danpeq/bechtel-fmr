@@ -742,6 +742,30 @@ header h1 {
         #fafafa;
 }
 
+.procurement-record {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+    align-items: stretch;
+    gap: 12px;
+}
+
+.comments-card {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #d7d7d7;
+    border-radius: 7px;
+    background-color: #fff;
+}
+
+.comments-value {
+    margin-top: 10px;
+    color: #333;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
 
 .procurement-field {
 
@@ -877,6 +901,10 @@ header h1 {
             1fr;
     }
 
+    .procurement-record {
+        grid-template-columns: 1fr;
+    }
+
 }
 
 
@@ -921,6 +949,35 @@ header h1 {
 
 .fmr-general-item:hover {
     transform: translateY(-2px);
+}
+
+.paginacion-fmrs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin: 0 0 22px;
+    color: #555;
+    font-size: 13px;
+}
+
+.paginacion-fmrs[hidden] {
+    display: none;
+}
+
+.paginacion-fmrs button {
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 1px solid #c7ccd1;
+    border-radius: 5px;
+    background: #fff;
+    color: #222;
+    cursor: pointer;
+}
+
+.paginacion-fmrs button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
 }
 
 .carga-datos {

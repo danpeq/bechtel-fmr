@@ -79,6 +79,23 @@ h2 { margin-bottom: 0; font-size: 22px; line-height: 1.1; font-weight: 600; }
 .insight-strip span:last-child { color: #896c43; }
 .insight-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
 
+.eta-section { margin: 22px 0; }
+.eta-section-heading { margin-bottom: 13px; }
+.eta-section-heading h2 { font-size: 22px; }
+.eta-period-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.eta-period-card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-top: 3px solid var(--teal); background: var(--panel); box-shadow: var(--shadow); }
+.eta-period-card > header { display: flex; justify-content: space-between; align-items: start; gap: 10px; margin: 0; padding: 15px; border-bottom: 1px solid var(--line); }
+.eta-period-card h3 { margin: 0 0 5px; font: 700 13px "Trebuchet MS", Arial, sans-serif; }
+.eta-period-card header p { margin: 0; color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
+.eta-count { color: var(--teal-dark); font: 700 18px "Trebuchet MS", Arial, sans-serif; }
+.eta-period-card ul { display: grid; gap: 0; max-height: 310px; overflow-y: auto; margin: 0; padding: 0 15px; list-style: none; }
+.eta-period-card li { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; padding: 10px 0; border-bottom: 1px solid #edf0ed; font: 11px "Trebuchet MS", Arial, sans-serif; }
+.eta-period-card li time { color: var(--muted); white-space: nowrap; }
+.eta-period-card li span { min-width: 0; overflow-wrap: anywhere; }
+.eta-period-card li strong, .eta-period-card li small { display: block; }
+.eta-period-card li small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.eta-empty { margin: 0; padding: 17px 15px; color: var(--muted); font: 12px "Trebuchet MS", Arial, sans-serif; }
+
 .dashboard-grid { display: grid; gap: 18px; margin-bottom: 18px; }
 .dashboard-grid-main { grid-template-columns: 1.25fr 0.75fr; }
 .dashboard-grid-secondary { grid-template-columns: 1fr 1fr; }
@@ -122,11 +139,13 @@ td { padding: 13px 12px; border-top: 1px solid var(--line); white-space: nowrap;
     .file-control { min-width: 0; }
     .metric-grid { grid-template-columns: repeat(2, 1fr); }
     .dashboard-grid-main, .dashboard-grid-secondary { grid-template-columns: 1fr; }
+    .eta-period-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
     .dashboard-shell { width: 90%; padding-top: 25px; }
     .metric-grid { grid-template-columns: 1fr; }
+    .eta-period-grid { grid-template-columns: 1fr; }
     .metric-card { min-height: 125px; }
     .donut-layout { grid-template-columns: 1fr; justify-items: center; }
     .bar-row { grid-template-columns: 100px 1fr 30px; gap: 8px; }
