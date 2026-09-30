@@ -167,7 +167,7 @@ function prepararDatos(workbook) {
 }
 
 function aplicarColor(elemento, color) {
-    elemento.classList.remove("estado-yellow", "estado-green", "estado-red", "estado-orange", "estado-white", "estado-red-intense");
+    elemento.classList.remove("estado-green", "estado-red", "estado-white", "estado-red-intense");
     elemento.classList.add(`estado-${color || "red"}`);
 }
 
@@ -182,30 +182,40 @@ function obtenerEstadoPO(fmr, po, subsistema) {
 
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
-    let tieneETA = false;
-    let tieneETAFutura = false;
+    const fechasETA = [];
     let tieneOnSite = false;
 
     datos.forEach(function(fila) {
         texto(fila.ETA).replace(/[;\n]/g, ",").split(",").filter(Boolean).forEach(function(valor) {
             const fechaETA = fecha(valor);
             if (fechaETA) {
-                tieneETA = true;
-                tieneETAFutura = tieneETAFutura || fechaETA > hoy;
+                fechasETA.push(fechaETA);
             }
         });
-        tieneOnSite = tieneOnSite || Boolean(texto(fila["ON SITE"]));
+        tieneOnSite = tieneOnSite || texto(fila["ON SITE"]).toLowerCase() === "on site";
     });
 
-    if (tieneETAFutura) {
-        return { color: "yellow", estado: "futura" };
-    }
-    if (!tieneETA) {
+    if (!fechasETA.length) {
         return { color: "red", estado: "sin_eta" };
     }
-    return tieneOnSite
-        ? { color: "green", estado: "pasada_on_site" }
-        : { color: "yellow", estado: "eta_sin_on_site" };
+
+    if (tieneOnSite) {
+        return { color: "green", estado: "pasada_on_site" };
+    }
+
+    const fechasFuturas = fechasETA.filter(function(fechaETA) { return fechaETA > hoy; });
+    if (!fechasFuturas.length) {
+        return { color: "red", estado: "eta_pasada_sin_on_site" };
+    }
+
+    const tieneETADesdeNoviembre = fechasFuturas.some(function(fechaETA) {
+        const limiteOctubre = new Date(fechaETA.getFullYear(), 9, 31, 23, 59, 59, 999);
+        return fechaETA > limiteOctubre;
+    });
+
+    return tieneETADesdeNoviembre
+        ? { color: "red-intense", estado: "futura_desde_noviembre" }
+        : { color: "white", estado: "futura_hasta_octubre" };
 }
 
 function obtenerDatosFMR(fmr, subsistema = "") {
@@ -215,7 +225,6 @@ function obtenerDatosFMR(fmr, subsistema = "") {
     const pos = valoresUnicos(filasFMR.map(function(fila) { return fila.PO; })).map(function(po) {
         return { po, ...obtenerEstadoPO(fmr, po, subsistema) };
     });
-    const colores = [...new Set(pos.map(function(item) { return item.color; }))];
     const procurement = filasFMR.map(function(fila) {
         return {
             po: texto(fila.PO),
@@ -240,33 +249,22 @@ function obtenerDatosFMR(fmr, subsistema = "") {
         total_po: pos.length,
         descripcion: texto(procurement.find(function(item) { return item.descripcion; })?.descripcion),
         procurement,
-        color: colores.length >= 2 ? "orange" : (colores[0] || "red"),
-        estado: colores.length >= 2 ? "combinada" : (colores[0] === "yellow" ? "futura" : colores[0] === "green" ? "pasada_on_site" : "sin_eta")
+        color: obtenerColorFMR({ pos }),
+        estado: ""
     };
 }
 
 function obtenerColorFMR(datos) {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const diasFuturos = (datos.procurement || []).flatMap(function(registro) {
-        return texto(registro.eta).replace(/[;\n]/g, ",").split(",").map(fecha).filter(function(valorFecha) {
-            return valorFecha && valorFecha > hoy;
-        }).map(function(valorFecha) {
-            const fechaUTC = Date.UTC(valorFecha.getFullYear(), valorFecha.getMonth(), valorFecha.getDate());
-            const hoyUTC = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
-            return Math.round((fechaUTC - hoyUTC) / 86400000);
-        });
-    });
-
-    if (diasFuturos.length) {
-        return Math.min(...diasFuturos) <= 20 ? "white" : "red-intense";
-    }
-
     const colores = [...new Set((datos.pos || []).map(function(item) { return item.color; }))];
-    if (colores.length >= 2) {
-        return "orange";
+    if (colores.includes("red-intense")) {
+        return "red-intense";
     }
-    return colores[0] === "yellow" ? "red" : (colores[0] || "red");
+    if (colores.includes("white")) {
+        return "white";
+    }
+    return colores.length && colores.every(function(color) { return color === "green"; })
+        ? "green"
+        : "red";
 }
 
 function crearBoton(textoBoton, clase, color, alClick) {

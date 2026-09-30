@@ -546,18 +546,6 @@ header h1 {
    ESTADOS
 ======================================================== */
 
-/* ETA FUTURA */
-
-.estado-yellow {
-
-    background-color:
-        #fff2cc !important;
-
-    border-color:
-        #d6b656 !important;
-}
-
-
 /* ETA PASADA + ON SITE */
 
 .estado-green {
@@ -579,17 +567,6 @@ header h1 {
 
     border-color:
         #c0504d !important;
-}
-
-/* FMR CON PO DE DISTINTOS COLORES */
-
-.estado-orange {
-
-    background-color:
-        #f9cb9c !important;
-
-    border-color:
-        #e69138 !important;
 }
 
 .estado-white {
