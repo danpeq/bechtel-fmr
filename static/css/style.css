@@ -592,6 +592,18 @@ header h1 {
         #e69138 !important;
 }
 
+.estado-white {
+    background-color: #fff !important;
+    border: 1px solid #727b85 !important;
+    color: #222 !important;
+}
+
+.estado-red-intense {
+    background-color: #c1121f !important;
+    border-color: #8f0b15 !important;
+    color: #fff !important;
+}
+
 /* ========================================================
    RESUMEN FMR
 ======================================================== */
@@ -951,33 +963,28 @@ header h1 {
     transform: translateY(-2px);
 }
 
-.paginacion-fmrs {
+.fmr-legend {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 14px;
-    margin: 0 0 22px;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    margin-top: 16px;
     color: #555;
-    font-size: 13px;
+    font-size: 12px;
 }
 
-.paginacion-fmrs[hidden] {
-    display: none;
+.fmr-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
-.paginacion-fmrs button {
-    min-height: 36px;
-    padding: 7px 12px;
-    border: 1px solid #c7ccd1;
-    border-radius: 5px;
-    background: #fff;
-    color: #222;
-    cursor: pointer;
-}
-
-.paginacion-fmrs button:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
+.fmr-legend-item i {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    flex: 0 0 13px;
+    border-radius: 3px;
 }
 
 .carga-datos {

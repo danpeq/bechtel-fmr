@@ -12,16 +12,9 @@ const estado = {
     fmrs: []
 };
 
-const FMRS_POR_PAGINA = 50;
-let paginaActualFMR = 0;
-
 const threeweekSelect = document.getElementById("threeweek-select");
 const fmrSearch = document.getElementById("fmr-search");
 const listaFMRsGeneral = document.getElementById("lista-fmrs-general");
-const paginacionFMR = document.getElementById("paginacion-fmrs");
-const paginaFMRLabel = document.getElementById("pagina-fmrs-label");
-const paginaFMRAnterior = document.getElementById("pagina-fmrs-anterior");
-const paginaFMRSiguiente = document.getElementById("pagina-fmrs-siguiente");
 const fmrOptions = document.getElementById("fmr-options");
 const infoSubsistema = document.getElementById("info-subsistema");
 const listaSubsistemas = document.getElementById("lista-subsistemas");
@@ -60,7 +53,9 @@ function fecha(valor) {
         return valor;
     }
     if (typeof valor === "number") {
-        return new Date(Date.UTC(1899, 11, 30) + valor * 86400000);
+        const resultado = new Date(1899, 11, 30);
+        resultado.setDate(resultado.getDate() + Math.floor(valor));
+        return resultado;
     }
     const valorTexto = texto(valor);
     if (!valorTexto) {
@@ -86,6 +81,21 @@ function fechaTexto(valor) {
         String(valorFecha.getMonth() + 1).padStart(2, "0"),
         valorFecha.getFullYear()
     ].join("/");
+}
+
+function formatoETA(valor) {
+    const valores = valor instanceof Date || typeof valor === "number"
+        ? [valor]
+        : texto(valor).replace(/[;\n]/g, ",").split(",").filter(Boolean);
+    const meses = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    return valores.map(function(item) {
+        const valorFecha = fecha(item);
+        if (!valorFecha) {
+            return texto(item);
+        }
+        return `${meses[valorFecha.getMonth()]} ${String(valorFecha.getDate()).padStart(2, "0")} ${valorFecha.getFullYear()}`;
+    }).join(", ");
 }
 
 function limpiarFila(fila) {
@@ -157,7 +167,7 @@ function prepararDatos(workbook) {
 }
 
 function aplicarColor(elemento, color) {
-    elemento.classList.remove("estado-yellow", "estado-green", "estado-red", "estado-orange");
+    elemento.classList.remove("estado-yellow", "estado-green", "estado-red", "estado-orange", "estado-white", "estado-red-intense");
     elemento.classList.add(`estado-${color || "red"}`);
 }
 
@@ -212,7 +222,7 @@ function obtenerDatosFMR(fmr, subsistema = "") {
             status: texto(fila.STATUS),
             buyer: texto(fila.BUYER),
             expeditor: texto(fila.EXPEDITOR),
-            eta: texto(fila.ETA),
+            eta: formatoETA(fila.ETA),
             on_site: texto(fila["ON SITE"]),
             entregado: texto(fila.ENTREGADO),
             descripcion: texto(fila.DESCRIPCION),
@@ -236,8 +246,27 @@ function obtenerDatosFMR(fmr, subsistema = "") {
 }
 
 function obtenerColorFMR(datos) {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const diasFuturos = (datos.procurement || []).flatMap(function(registro) {
+        return texto(registro.eta).replace(/[;\n]/g, ",").split(",").map(fecha).filter(function(valorFecha) {
+            return valorFecha && valorFecha > hoy;
+        }).map(function(valorFecha) {
+            const fechaUTC = Date.UTC(valorFecha.getFullYear(), valorFecha.getMonth(), valorFecha.getDate());
+            const hoyUTC = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+            return Math.round((fechaUTC - hoyUTC) / 86400000);
+        });
+    });
+
+    if (diasFuturos.length) {
+        return Math.min(...diasFuturos) <= 20 ? "white" : "red-intense";
+    }
+
     const colores = [...new Set((datos.pos || []).map(function(item) { return item.color; }))];
-    return colores.length >= 2 ? "orange" : (colores[0] || "red");
+    if (colores.length >= 2) {
+        return "orange";
+    }
+    return colores[0] === "yellow" ? "red" : (colores[0] || "red");
 }
 
 function crearBoton(textoBoton, clase, color, alClick) {
@@ -254,22 +283,13 @@ function crearBoton(textoBoton, clase, color, alClick) {
 
 function cargarTodasLasFMR() {
     listaFMRsGeneral.innerHTML = "";
-    const totalPaginas = Math.max(1, Math.ceil(estado.fmrs.length / FMRS_POR_PAGINA));
-    paginaActualFMR = Math.min(paginaActualFMR, totalPaginas - 1);
-    const inicio = paginaActualFMR * FMRS_POR_PAGINA;
-
-    estado.fmrs.slice(inicio, inicio + FMRS_POR_PAGINA).forEach(function(fmr) {
+    estado.fmrs.forEach(function(fmr) {
         const datos = obtenerDatosFMR(fmr);
         listaFMRsGeneral.appendChild(crearBoton(fmr, "fmr-general-item", obtenerColorFMR(datos), function() {
             fmrSearch.value = fmr;
             buscarFMR(fmr);
         }));
     });
-
-    paginacionFMR.hidden = estado.fmrs.length <= FMRS_POR_PAGINA;
-    paginaFMRLabel.textContent = `${paginaActualFMR + 1} / ${totalPaginas}`;
-    paginaFMRAnterior.disabled = paginaActualFMR === 0;
-    paginaFMRSiguiente.disabled = paginaActualFMR >= totalPaginas - 1;
 }
 
 function cargar3Week() {
@@ -479,7 +499,6 @@ async function procesarArchivoLocal(contenido, nombre, guardar = true) {
         const workbook = XLSX.read(contenido, { type: "array", cellDates: true });
         prepararDatos(workbook);
         estado.cargado = true;
-        paginaActualFMR = 0;
         threeweekSelect.disabled = false;
         fmrSearch.disabled = false;
         estadoCarga.textContent = `${nombre} cargado. El análisis se ejecuta en el navegador.`;
@@ -524,8 +543,6 @@ async function restaurarWorkbookLocal() {
     }
 }
 
-restaurarWorkbookLocal();
-
 threeweekSelect.addEventListener("change", function() {
     threeweekSeleccionado = this.value.trim();
     if (!threeweekSeleccionado) {
@@ -549,16 +566,5 @@ fmrSearch.addEventListener("change", function() {
     buscarFMR(this.value);
 });
 
-paginaFMRAnterior.addEventListener("click", function() {
-    if (paginaActualFMR > 0) {
-        paginaActualFMR -= 1;
-        cargarTodasLasFMR();
-    }
-});
+restaurarWorkbookLocal();
 
-paginaFMRSiguiente.addEventListener("click", function() {
-    if ((paginaActualFMR + 1) * FMRS_POR_PAGINA < estado.fmrs.length) {
-        paginaActualFMR += 1;
-        cargarTodasLasFMR();
-    }
-});
