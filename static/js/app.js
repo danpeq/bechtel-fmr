@@ -167,7 +167,7 @@ function prepararDatos(workbook) {
 }
 
 function aplicarColor(elemento, color) {
-    elemento.classList.remove("estado-green", "estado-red", "estado-white", "estado-red-intense");
+    elemento.classList.remove("estado-green", "estado-red", "estado-white", "estado-yellow", "estado-red-intense");
     elemento.classList.add(`estado-${color || "red"}`);
 }
 
@@ -184,6 +184,7 @@ function obtenerEstadoPO(fmr, po, subsistema) {
     hoy.setHours(0, 0, 0, 0);
     const fechasETA = [];
     let tieneOnSite = false;
+    let tieneOnSiteParcial = false;
 
     datos.forEach(function(fila) {
         texto(fila.ETA).replace(/[;\n]/g, ",").split(",").filter(Boolean).forEach(function(valor) {
@@ -192,7 +193,9 @@ function obtenerEstadoPO(fmr, po, subsistema) {
                 fechasETA.push(fechaETA);
             }
         });
-        tieneOnSite = tieneOnSite || texto(fila["ON SITE"]).toLowerCase() === "on site";
+        const estadoOnSite = texto(fila["ON SITE"]).toLowerCase();
+        tieneOnSite = tieneOnSite || estadoOnSite === "on site";
+        tieneOnSiteParcial = tieneOnSiteParcial || estadoOnSite === "on site - parcial";
     });
 
     if (!fechasETA.length) {
@@ -208,14 +211,27 @@ function obtenerEstadoPO(fmr, po, subsistema) {
         return { color: "red", estado: "eta_pasada_sin_on_site" };
     }
 
+    const limiteOctubre2026 = new Date(2026, 9, 31, 23, 59, 59, 999);
+    const inicioNoviembre2026 = new Date(2026, 10, 1);
     const tieneETADesdeNoviembre = fechasFuturas.some(function(fechaETA) {
-        const limiteOctubre = new Date(fechaETA.getFullYear(), 9, 31, 23, 59, 59, 999);
-        return fechaETA > limiteOctubre;
+        return fechaETA >= inicioNoviembre2026;
     });
 
-    return tieneETADesdeNoviembre
-        ? { color: "red-intense", estado: "futura_desde_noviembre" }
-        : { color: "white", estado: "futura_hasta_octubre" };
+    if (tieneETADesdeNoviembre) {
+        return { color: "red-intense", estado: "futura_desde_noviembre" };
+    }
+
+    const tieneETAHastaOctubre = fechasFuturas.some(function(fechaETA) {
+        return fechaETA <= limiteOctubre2026;
+    });
+    if (tieneETAHastaOctubre && tieneOnSiteParcial) {
+        return { color: "yellow", estado: "on_site_parcial" };
+    }
+    if (tieneETAHastaOctubre) {
+        return { color: "white", estado: "futura_hasta_octubre" };
+    }
+
+    return { color: "red", estado: "sin_categoria_eta" };
 }
 
 function obtenerDatosFMR(fmr, subsistema = "") {
@@ -258,6 +274,9 @@ function obtenerColorFMR(datos) {
     const colores = [...new Set((datos.pos || []).map(function(item) { return item.color; }))];
     if (colores.includes("red-intense")) {
         return "red-intense";
+    }
+    if (colores.includes("yellow")) {
+        return "yellow";
     }
     if (colores.includes("white")) {
         return "white";

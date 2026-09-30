@@ -557,6 +557,12 @@ header h1 {
         #70ad47 !important;
 }
 
+.estado-yellow {
+    background-color: #fff2cc !important;
+    border-color: #d6b656 !important;
+    color: #222 !important;
+}
+
 
 /* SIN ETA / ETA PASADA SIN ON SITE */
 
