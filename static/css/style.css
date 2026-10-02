@@ -246,7 +246,20 @@ header h1 {
 
 .search-mode-button:disabled {
     cursor: not-allowed;
-    opacity: 0.55;
+    border-color: #c2cbd3;
+    background: #e3e8ed;
+    color: #52606d;
+    opacity: 1;
+}
+
+.search-mode-hint {
+    color: #68737d;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.search-mode-hint[hidden] {
+    display: none;
 }
 
 

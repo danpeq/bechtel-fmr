@@ -22,6 +22,7 @@ const threeweekSelect = document.getElementById("threeweek-select");
 const fmrSearch = document.getElementById("fmr-search");
 const fmrSearchLabel = document.getElementById("fmr-search-label");
 const modoBusquedaButton = document.getElementById("modo-busqueda-button");
+const ayudaBusqueda = document.getElementById("ayuda-busqueda");
 const listaFMRsGeneral = document.getElementById("lista-fmrs-general");
 const busquedaSubsistemaPanel = document.getElementById("busqueda-subsistema-panel");
 const listaSubsistemasGeneral = document.getElementById("lista-subsistemas-general");
@@ -328,6 +329,7 @@ function actualizarModoBusqueda() {
     const modoSubsistema = vista.modoBusqueda === "subsistema";
     modoBusquedaButton.textContent = modoSubsistema ? "Búsqueda por FMR" : "Búsqueda por Subsistema";
     modoBusquedaButton.disabled = !estado.cargado;
+    ayudaBusqueda.hidden = estado.cargado;
     fmrSearch.disabled = !estado.cargado;
     fmrSearchLabel.textContent = modoSubsistema ? "Búsqueda por Subsistema" : "Búsqueda de FMR";
     fmrSearch.placeholder = modoSubsistema
@@ -675,7 +677,7 @@ async function procesarArchivoLocal(contenido, nombre, guardar = true) {
     } catch (error) {
         estado.cargado = false;
         threeweekSelect.disabled = true;
-        fmrSearch.disabled = true;
+        actualizarModoBusqueda();
         estadoCarga.textContent = error.message || "No se pudo leer el archivo Excel.";
         return false;
     }
