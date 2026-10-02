@@ -104,19 +104,24 @@
 
         <div class="filtro-item">
 
-            <label for="fmr-search">
+            <label id="fmr-search-label" for="fmr-search">
                 Búsqueda de FMR
             </label>
 
-            <input
-                type="text"
-                id="fmr-search"
-                class="fmr-search-input"
-                disabled
-                list="fmr-options"
-                placeholder="Seleccione o escriba un FMR"
-                autocomplete="off"
-            >
+            <div class="fmr-search-controls">
+                <input
+                    type="text"
+                    id="fmr-search"
+                    class="fmr-search-input"
+                    disabled
+                    list="fmr-options"
+                    placeholder="Seleccione o escriba un FMR"
+                    autocomplete="off"
+                >
+                <button id="modo-busqueda-button" class="search-mode-button" type="button" disabled>
+                    Búsqueda por Subsistema
+                </button>
+            </div>
 
             <datalist
                 id="fmr-options"
@@ -140,6 +145,20 @@
             class="fmrs-general-container"
         >
         </div>
+
+        <section id="busqueda-subsistema-panel" class="info-section" style="display: none;">
+            <h2>SubSistemas</h2>
+            <p id="estado-filtro-subsistemas" class="estado-filtro-subsistemas" aria-live="polite"></p>
+            <div id="lista-subsistemas-general" class="subsistema-list"></div>
+            <div id="subsistema-general-seleccionado" class="subsistema-seleccionado" style="display: none;">
+                <h3>SubSistema seleccionado</h3>
+                <div id="nombre-subsistema-general" class="info-value"></div>
+                <div class="fmr-section">
+                    <h3>FMR Asociado</h3>
+                    <div id="lista-fmr-subsistema-general" class="fmr-list"></div>
+                </div>
+            </div>
+        </section>
 
 
     <!-- ==================================================
@@ -168,15 +187,12 @@
             class="subsistema-seleccionado"
         >
 
-            <h3>
-                SubSistema seleccionado
-            </h3>
-
-
-            <div
-                id="nombre-subsistema"
-                class="info-value"
-            >
+            <h3>SubSistema seleccionado</h3>
+            <div class="subsistema-seleccionado-actions">
+                <div id="nombre-subsistema" class="info-value"></div>
+                <button id="regresar-a-fmr" class="search-mode-button" type="button" style="display: none;">
+                    Regresar a FMR
+                </button>
             </div>
 
 

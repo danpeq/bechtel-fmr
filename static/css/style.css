@@ -216,6 +216,39 @@ header h1 {
         #777;
 }
 
+.fmr-search-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    min-width: 0;
+}
+
+.search-mode-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 9px 12px;
+    border: 1px solid #333;
+    border-radius: 6px;
+    background: #333;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: normal;
+    line-height: 1.25;
+}
+
+.search-mode-button:hover:not(:disabled) {
+    background: #555;
+}
+
+.search-mode-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
 
 /* ========================================================
    SECCIONES
@@ -344,6 +377,13 @@ header h1 {
 
     border-top:
         1px solid #ddd;
+}
+
+.subsistema-seleccionado-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 
@@ -921,6 +961,15 @@ header h1 {
             1fr;
     }
 
+    .fmr-search-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .subsistema-seleccionado-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
 }
 
 .fmrs-general-container {
@@ -1013,4 +1062,47 @@ select:disabled,
 input:disabled {
     cursor: not-allowed;
     background-color: #eef0f2;
+}
+
+#lista-subsistemas-general {
+    max-height: 320px;
+    overflow-y: auto;
+    align-content: flex-start;
+    padding: 2px;
+}
+
+.estado-filtro-subsistemas {
+    margin: -8px 0 14px;
+    color: #666;
+    font-size: 12px;
+}
+
+@media (max-width: 800px) {
+    .main-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .carga-datos {
+        align-items: stretch;
+        flex-direction: column;
+        margin-bottom: 20px;
+    }
+
+    .procurement-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 500px) {
+    .info-section,
+    .detalle-section {
+        padding: 16px;
+    }
+}
+
+@media (max-width: 800px) {
+    .fmr-encontrado-container .fmr-summary-container {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }

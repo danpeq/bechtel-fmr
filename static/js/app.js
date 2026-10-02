@@ -12,14 +12,29 @@ const estado = {
     fmrs: []
 };
 
+const vista = {
+    modoBusqueda: "fmr",
+    fmrDeRegreso: "",
+    subsistemaBusqueda: ""
+};
+
 const threeweekSelect = document.getElementById("threeweek-select");
 const fmrSearch = document.getElementById("fmr-search");
+const fmrSearchLabel = document.getElementById("fmr-search-label");
+const modoBusquedaButton = document.getElementById("modo-busqueda-button");
 const listaFMRsGeneral = document.getElementById("lista-fmrs-general");
+const busquedaSubsistemaPanel = document.getElementById("busqueda-subsistema-panel");
+const listaSubsistemasGeneral = document.getElementById("lista-subsistemas-general");
+const estadoFiltroSubsistemas = document.getElementById("estado-filtro-subsistemas");
+const subsistemaGeneralSeleccionado = document.getElementById("subsistema-general-seleccionado");
+const nombreSubsistemaGeneral = document.getElementById("nombre-subsistema-general");
+const listaFMRSubsistemaGeneral = document.getElementById("lista-fmr-subsistema-general");
 const fmrOptions = document.getElementById("fmr-options");
 const infoSubsistema = document.getElementById("info-subsistema");
 const listaSubsistemas = document.getElementById("lista-subsistemas");
 const subsistemaSeleccionadoDiv = document.getElementById("subsistema-seleccionado");
 const nombreSubsistema = document.getElementById("nombre-subsistema");
+const regresarAFMRButton = document.getElementById("regresar-a-fmr");
 const listaFMR = document.getElementById("lista-fmr");
 const resultadoFMRSearch = document.getElementById("resultado-fmr-search");
 const fmrEncontrado = document.getElementById("fmr-encontrado");
@@ -309,6 +324,114 @@ function cargarTodasLasFMR() {
     });
 }
 
+function actualizarModoBusqueda() {
+    const modoSubsistema = vista.modoBusqueda === "subsistema";
+    modoBusquedaButton.textContent = modoSubsistema ? "Búsqueda por FMR" : "Búsqueda por Subsistema";
+    modoBusquedaButton.disabled = !estado.cargado;
+    fmrSearch.disabled = !estado.cargado;
+    fmrSearchLabel.textContent = modoSubsistema ? "Búsqueda por Subsistema" : "Búsqueda de FMR";
+    fmrSearch.placeholder = modoSubsistema
+        ? "Seleccione o escriba un Subsistema"
+        : "Seleccione o escriba un FMR";
+    listaFMRsGeneral.style.display = modoSubsistema ? "none" : "flex";
+    busquedaSubsistemaPanel.style.display = modoSubsistema ? "block" : "none";
+    cargarListaFMR();
+}
+
+function filtrarSubsistemasBusqueda(termino = fmrSearch.value) {
+    const busqueda = texto(termino).toLocaleLowerCase();
+    const botones = [...listaSubsistemasGeneral.querySelectorAll(".subsistema-item")];
+    let visibles = 0;
+    botones.forEach(function(boton) {
+        boton.style.display = !busqueda || boton.textContent.toLocaleLowerCase().includes(busqueda)
+            ? ""
+            : "none";
+        if (boton.style.display !== "none") {
+            visibles += 1;
+        }
+    });
+    estadoFiltroSubsistemas.textContent = busqueda
+        ? (visibles ? `${visibles} de ${botones.length} SubSistemas` : "No se encontraron SubSistemas.")
+        : `${botones.length} SubSistemas disponibles`;
+}
+
+function seleccionarSubsistemaBusqueda(subsistema) {
+    const botonSeleccionado = [...listaSubsistemasGeneral.querySelectorAll(".subsistema-item")].find(function(boton) {
+        return boton.textContent === subsistema;
+    });
+    if (!botonSeleccionado) {
+        return false;
+    }
+
+    vista.subsistemaBusqueda = subsistema;
+    fmrSearch.value = subsistema;
+    filtrarSubsistemasBusqueda(subsistema);
+    listaSubsistemasGeneral.querySelectorAll(".subsistema-item").forEach(function(boton) {
+        boton.classList.toggle("selected", boton === botonSeleccionado);
+    });
+    nombreSubsistemaGeneral.textContent = subsistema;
+    subsistemaGeneralSeleccionado.style.display = "block";
+    cargarFMRSubsistemaBusqueda(subsistema);
+    return true;
+}
+
+function cargarSubsistemasBusqueda() {
+    listaSubsistemasGeneral.innerHTML = "";
+    subsistemaGeneralSeleccionado.style.display = "none";
+
+    const subsistemas = valoresUnicos(estado.normalizado.map(function(fila) {
+        return fila.SubSistema;
+    }));
+    if (!subsistemas.length) {
+        listaSubsistemasGeneral.innerHTML = "<p class=\"mensaje-vacio\">No hay SubSistemas en el archivo.</p>";
+        return;
+    }
+
+    subsistemas.forEach(function(subsistema) {
+        listaSubsistemasGeneral.appendChild(crearBoton(subsistema, "subsistema-item", null, function() {
+            seleccionarSubsistemaBusqueda(subsistema);
+        }));
+    });
+    filtrarSubsistemasBusqueda();
+}
+
+function cargarFMRSubsistemaBusqueda(subsistema) {
+    listaFMRSubsistemaGeneral.innerHTML = "";
+    const fmrs = valoresUnicos(estado.normalizado.filter(function(fila) {
+        return texto(fila.SubSistema) === subsistema;
+    }).map(function(fila) { return fila.FMR; }));
+
+    if (!fmrs.length) {
+        listaFMRSubsistemaGeneral.innerHTML = "<p class=\"mensaje-vacio\">No hay FMR asociadas a este SubSistema.</p>";
+        return;
+    }
+
+    fmrs.forEach(function(fmr) {
+        const datos = obtenerDatosFMR(fmr, subsistema);
+        listaFMRSubsistemaGeneral.appendChild(crearBoton(fmr, "fmr-item", obtenerColorFMR(datos), function() {
+            buscarFMR(fmr, true);
+        }));
+    });
+}
+
+function cambiarModoBusqueda() {
+    const siguienteModo = vista.modoBusqueda === "fmr" ? "subsistema" : "fmr";
+    vista.modoBusqueda = siguienteModo;
+    resultadoFMRSearch.style.display = "none";
+    infoSubsistema.style.display = "none";
+    detalleFMR.style.display = "none";
+    regresarAFMRButton.style.display = "none";
+    fmrSearch.value = "";
+    vista.subsistemaBusqueda = "";
+
+    if (siguienteModo === "subsistema") {
+        cargarSubsistemasBusqueda();
+    } else {
+        vista.subsistemaBusqueda = "";
+    }
+    actualizarModoBusqueda();
+}
+
 function cargar3Week() {
     threeweekSelect.innerHTML = "<option value=\"\">Seleccione una fecha</option>";
     estado.semanas.forEach(function(semana) {
@@ -345,6 +468,7 @@ function cargarSubsistemas3Week(fechaSeleccionada) {
 
 function seleccionarSubsistema(boton, subsistema) {
     subsistemaSeleccionado = subsistema;
+    regresarAFMRButton.style.display = "none";
     document.querySelectorAll(".subsistema-item").forEach(function(item) { item.classList.remove("selected"); });
     boton.classList.add("selected");
     nombreSubsistema.textContent = subsistema;
@@ -451,10 +575,16 @@ function mostrarProcurementPorPO(procurement, po) {
     });
 }
 
-function buscarFMR(fmr) {
+function buscarFMR(fmr, conservarModoBusqueda = false) {
     fmr = texto(fmr);
     if (!fmr) {
         return;
+    }
+    if (!conservarModoBusqueda) {
+        vista.modoBusqueda = "fmr";
+        vista.fmrDeRegreso = "";
+        actualizarModoBusqueda();
+        regresarAFMRButton.style.display = "none";
     }
     const datos = obtenerDatosFMR(fmr);
     resultadoFMRSearch.style.display = "block";
@@ -474,13 +604,16 @@ function buscarFMR(fmr) {
         listaSubsistemasFMR.appendChild(crearBoton(subsistema, "subsistema-item", null, function() {
             subsistemaSeleccionado = subsistema;
             fmrSeleccionado = datos.fmr;
+            vista.fmrDeRegreso = datos.fmr;
             infoSubsistema.style.display = "block";
+            resultadoFMRSearch.style.display = "none";
             listaSubsistemas.innerHTML = "";
             const boton = crearBoton(subsistema, "subsistema-item", null, function() {});
             boton.classList.add("selected");
             listaSubsistemas.appendChild(boton);
             nombreSubsistema.textContent = subsistema;
             subsistemaSeleccionadoDiv.style.display = "block";
+            regresarAFMRButton.style.display = "inline-flex";
             cargarFMR(subsistema);
             cargarDetalleFMR(datos.fmr, subsistema);
         }));
@@ -490,9 +623,12 @@ function buscarFMR(fmr) {
 
 function cargarListaFMR() {
     fmrOptions.innerHTML = "";
-    estado.fmrs.forEach(function(fmr) {
+    const opciones = vista.modoBusqueda === "subsistema"
+        ? valoresUnicos(estado.normalizado.map(function(fila) { return fila.SubSistema; }))
+        : estado.fmrs;
+    opciones.forEach(function(opcion) {
         const option = document.createElement("option");
-        option.value = fmr;
+        option.value = opcion;
         fmrOptions.appendChild(option);
     });
 }
@@ -508,6 +644,8 @@ function limpiarPantalla() {
     infoSubsistema.style.display = "none";
     resultadoFMRSearch.style.display = "none";
     detalleFMR.style.display = "none";
+    busquedaSubsistemaPanel.style.display = "none";
+    regresarAFMRButton.style.display = "none";
 }
 
 async function procesarArchivoLocal(contenido, nombre, guardar = true) {
@@ -516,8 +654,9 @@ async function procesarArchivoLocal(contenido, nombre, guardar = true) {
         const workbook = XLSX.read(contenido, { type: "array", cellDates: true });
         prepararDatos(workbook);
         estado.cargado = true;
+        vista.modoBusqueda = "fmr";
         threeweekSelect.disabled = false;
-        fmrSearch.disabled = false;
+        actualizarModoBusqueda();
         estadoCarga.textContent = `${nombre} cargado. El análisis se ejecuta en el navegador.`;
         cargar3Week();
         cargarListaFMR();
@@ -561,6 +700,12 @@ async function restaurarWorkbookLocal() {
 }
 
 threeweekSelect.addEventListener("change", function() {
+    vista.modoBusqueda = "fmr";
+    vista.fmrDeRegreso = "";
+    vista.subsistemaBusqueda = "";
+    fmrSearch.value = "";
+    actualizarModoBusqueda();
+    regresarAFMRButton.style.display = "none";
     threeweekSeleccionado = this.value.trim();
     if (!threeweekSeleccionado) {
         limpiarPantalla();
@@ -575,12 +720,55 @@ threeweekSelect.addEventListener("change", function() {
 fmrSearch.addEventListener("keydown", function(event) {
     if (event.key === "Enter") {
         event.preventDefault();
+        if (vista.modoBusqueda === "subsistema") {
+            const busqueda = texto(this.value).toLocaleLowerCase();
+            const subsistemas = valoresUnicos(estado.normalizado.map(function(fila) {
+                return fila.SubSistema;
+            }));
+            const coincidenciaExacta = subsistemas.find(function(subsistema) {
+                return subsistema.toLocaleLowerCase() === busqueda;
+            });
+            const coincidencias = subsistemas.filter(function(subsistema) {
+                return subsistema.toLocaleLowerCase().includes(busqueda);
+            });
+            if (coincidenciaExacta || coincidencias.length === 1) {
+                seleccionarSubsistemaBusqueda(coincidenciaExacta || coincidencias[0]);
+            }
+            filtrarSubsistemasBusqueda();
+            return;
+        }
         buscarFMR(this.value);
     }
 });
 
+fmrSearch.addEventListener("input", function() {
+    if (vista.modoBusqueda === "subsistema") {
+        filtrarSubsistemasBusqueda(this.value);
+    }
+});
+
 fmrSearch.addEventListener("change", function() {
+    if (vista.modoBusqueda === "subsistema") {
+        const busqueda = texto(this.value).toLocaleLowerCase();
+        const subsistema = valoresUnicos(estado.normalizado.map(function(fila) {
+            return fila.SubSistema;
+        })).find(function(item) { return item.toLocaleLowerCase() === busqueda; });
+        if (subsistema) {
+            seleccionarSubsistemaBusqueda(subsistema);
+        } else {
+            filtrarSubsistemasBusqueda(this.value);
+        }
+        return;
+    }
     buscarFMR(this.value);
+});
+
+modoBusquedaButton.addEventListener("click", cambiarModoBusqueda);
+
+regresarAFMRButton.addEventListener("click", function() {
+    if (vista.fmrDeRegreso) {
+        buscarFMR(vista.fmrDeRegreso);
+    }
 });
 
 restaurarWorkbookLocal();
