@@ -151,3 +151,30 @@ td { padding: 13px 12px; border-top: 1px solid var(--line); white-space: nowrap;
     .bar-row { grid-template-columns: 100px 1fr 30px; gap: 8px; }
     .panel { padding: 16px; }
 }
+
+.impact-method { max-width: 850px; margin: -8px 0 20px; color: var(--muted); font: 12px/1.5 "Trebuchet MS", Arial, sans-serif; }
+.impact-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 0 0 18px; border-bottom: 1px solid var(--line); }
+.impact-summary-item { display: grid; gap: 5px; min-width: 0; }
+.impact-summary-item strong { color: var(--teal-dark); font: 500 26px/1 Georgia, serif; }
+.impact-summary-item span { color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
+.subsystem-impact-list { display: grid; }
+.subsystem-impact-row { min-width: 0; padding: 17px 0; border-bottom: 1px solid var(--line); }
+.impact-row-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.impact-row-heading h3 { margin: 0 0 4px; font: 700 15px "Trebuchet MS", Arial, sans-serif; }
+.impact-row-heading p { margin: 0; color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
+.impact-percent { color: var(--teal-dark); text-align: right; font: 700 22px/1 "Trebuchet MS", Arial, sans-serif; }
+.impact-percent small { display: block; margin-top: 4px; color: var(--muted); font: 10px "Trebuchet MS", Arial, sans-serif; }
+.impact-progress { height: 9px; overflow: hidden; margin: 12px 0 9px; background: #edf2ef; }
+.impact-progress span { display: block; height: 100%; background: var(--teal); }
+.impact-breakdown { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
+.impact-risk { margin: 8px 0 0; color: var(--muted); font: 12px "Trebuchet MS", Arial, sans-serif; }
+.impact-risk strong { color: var(--red); }
+
+@media (max-width: 900px) {
+    .impact-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+    .impact-row-heading { gap: 8px; }
+    .impact-percent { font-size: 20px; }
+}

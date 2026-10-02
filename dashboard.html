@@ -122,29 +122,17 @@
                 </section>
             </div>
 
-            <section class="panel risk-panel">
+            <section class="panel subsystem-impact-panel">
                 <div class="panel-heading">
                     <div>
-                        <span class="section-kicker">ATENCIÓN GERENCIAL</span>
-                        <h2>FMR con mayor exposición</h2>
+                        <span class="section-kicker">MATERIALES Y AVANCE</span>
+                        <h2>Impacto de llegada de FMR por SubSistema</h2>
                     </div>
-                    <span class="panel-caption">Sin ETA o ETA futura</span>
+                    <span class="panel-caption">Cobertura y exposición pendiente</span>
                 </div>
-                <div class="table-wrap">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>FMR</th>
-                                <th>SubSistemas</th>
-                                <th>PO</th>
-                                <th>Sin ETA</th>
-                                <th>ETA futura</th>
-                                <th>Estado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="risk-table"></tbody>
-                    </table>
-                </div>
+                <p class="impact-method">Estimación por FMR: recibida (On Site/Entregado) = 100%; parcial = 50%; pendiente o sin ETA = 0%. Todas las FMR pesan igual; no representa avance físico de obra.</p>
+                <div id="subsystem-impact-summary" class="impact-summary"></div>
+                <div id="subsystem-impact-list" class="subsystem-impact-list"></div>
             </section>
         </section>
     </main>

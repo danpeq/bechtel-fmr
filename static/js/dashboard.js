@@ -69,6 +69,125 @@ function splitETAs(value) {
     });
 }
 
+function delivered(value) {
+    const normalized = text(value).toLocaleLowerCase();
+    return Boolean(normalized) && !["no", "no entregado", "pendiente", "false", "0", "n"].includes(normalized);
+}
+
+function buildSubsystemImpact(rows) {
+    const subsystems = new Map();
+    rows.forEach(function(row) {
+        const subsystem = text(row.SubSistema);
+        const fmr = text(row.FMR);
+        if (!subsystem || !fmr || fmr.includes("…")) {
+            return;
+        }
+
+        if (!subsystems.has(subsystem)) {
+            subsystems.set(subsystem, new Map());
+        }
+        const fmrs = subsystems.get(subsystem);
+        if (!fmrs.has(fmr)) {
+            fmrs.set(fmr, { pos: new Map(), rowsWithoutPO: [] });
+        }
+        const fmrData = fmrs.get(fmr);
+        const pos = splitPO(row.PO);
+        if (!pos.length) {
+            fmrData.rowsWithoutPO.push(row);
+            return;
+        }
+        pos.forEach(function(po) {
+            if (!fmrData.pos.has(po)) {
+                fmrData.pos.set(po, []);
+            }
+            fmrData.pos.get(po).push(row);
+        });
+    });
+
+    let totalFmrs = 0;
+    let arrivedFmrs = 0;
+    let partialFmrs = 0;
+    let pendingFmrs = 0;
+    let withoutEtaFmrs = 0;
+
+    const items = [...subsystems.entries()].map(function([subsystem, fmrs]) {
+        let coverageScore = 0;
+        let arrived = 0;
+        let partial = 0;
+        let pending = 0;
+        let withoutEta = 0;
+
+        fmrs.forEach(function(fmrData) {
+            const pos = fmrData.pos.size
+                ? [...fmrData.pos.values()]
+                : [fmrData.rowsWithoutPO];
+            const scores = pos.map(function(rowsForPO) {
+                const isArrived = rowsForPO.some(function(row) {
+                    return text(row["ON SITE"]).toLocaleLowerCase() === "on site" || delivered(row.ENTREGADO);
+                });
+                const isPartial = rowsForPO.some(function(row) {
+                    return text(row["ON SITE"]).toLocaleLowerCase() === "on site - parcial";
+                });
+                const hasEta = rowsForPO.some(function(row) { return splitETAs(row.ETA).length > 0; });
+                return {
+                    score: isArrived ? 1 : (isPartial ? 0.5 : 0),
+                    withoutEta: !isArrived && !hasEta
+                };
+            });
+            const fmrScore = scores.reduce(function(sum, item) { return sum + item.score; }, 0) / scores.length;
+            coverageScore += fmrScore;
+            if (fmrScore === 1) {
+                arrived += 1;
+            } else if (fmrScore > 0) {
+                partial += 1;
+            } else {
+                pending += 1;
+            }
+            if (scores.some(function(item) { return item.withoutEta; })) {
+                withoutEta += 1;
+            }
+        });
+
+        const total = fmrs.size;
+        totalFmrs += total;
+        arrivedFmrs += arrived;
+        partialFmrs += partial;
+        pendingFmrs += pending;
+        withoutEtaFmrs += withoutEta;
+
+        const coveragePercent = total ? Math.round((coverageScore / total) * 100) : 0;
+        return {
+            subsystem,
+            total,
+            arrived,
+            partial,
+            pending,
+            withoutEta,
+            coverageScore,
+            coveragePercent,
+            impactPercent: 100 - coveragePercent
+        };
+    }).sort(function(a, b) {
+        return a.coveragePercent - b.coveragePercent || b.withoutEta - a.withoutEta || a.subsystem.localeCompare(b.subsystem);
+    });
+
+    const totalScore = items.reduce(function(sum, item) {
+        return sum + item.coverageScore;
+    }, 0);
+
+    return {
+        items,
+        totals: {
+            totalFmrs,
+            arrivedFmrs,
+            partialFmrs,
+            pendingFmrs,
+            withoutEtaFmrs,
+            coveragePercent: totalFmrs ? Math.round((totalScore / totalFmrs) * 100) : 0
+        }
+    };
+}
+
 function escapeHtml(value) {
     return text(value).replace(/[&<>\"']/g, function(character) {
         return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" }[character];
@@ -198,6 +317,7 @@ function buildModel(workbook) {
         subsystemCounts[subsystem] = subsystemCounts[subsystem] || new Set();
         subsystemCounts[subsystem].add(text(row.FMR));
     });
+    const subsystemImpact = buildSubsystemImpact(validRows);
 
     return {
         fileRows: rows.length,
@@ -208,6 +328,8 @@ function buildModel(workbook) {
         statusCounts,
         delivery,
         etaPeriods,
+        subsystemImpact: subsystemImpact.items,
+        subsystemImpactTotals: subsystemImpact.totals,
         weeks: Object.entries(weeks).map(function([label, values]) { return { label, count: values.size }; }),
         subsystemCounts: Object.entries(subsystemCounts).map(function([label, values]) { return { label, count: values.size }; })
     };
@@ -256,16 +378,35 @@ function renderEtaPeriods(periods) {
     }).join("");
 }
 
+function renderSubsystemImpact(items, totals) {
+    document.getElementById("subsystem-impact-summary").innerHTML = [
+        { value: `${totals.coveragePercent}%`, label: "Cobertura estimada" },
+        { value: totals.arrivedFmrs, label: "FMR recibidas" },
+        { value: totals.partialFmrs, label: "FMR parciales" },
+        { value: totals.pendingFmrs, label: "FMR pendientes" }
+    ].map(function(item) {
+        return `<div class="impact-summary-item"><strong>${item.value}</strong><span>${item.label}</span></div>`;
+    }).join("");
+
+    document.getElementById("subsystem-impact-list").innerHTML = items.map(function(item) {
+        return `<article class="subsystem-impact-row">
+            <div class="impact-row-heading">
+                <div><h3>${escapeHtml(item.subsystem)}</h3><p>${item.total} FMR asociadas</p></div>
+                <strong class="impact-percent">${item.coveragePercent}%<small>cobertura</small></strong>
+            </div>
+            <div class="impact-progress" role="progressbar" aria-label="Cobertura estimada de ${escapeHtml(item.subsystem)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${item.coveragePercent}"><span style="width:${item.coveragePercent}%"></span></div>
+            <div class="impact-breakdown"><span>${item.arrived} recibidas</span><span>${item.partial} parciales</span><span>${item.pending} pendientes</span></div>
+            <p class="impact-risk">Impacto pendiente: <strong>${item.impactPercent}%</strong>${item.withoutEta ? ` · ${item.withoutEta} sin ETA` : ""}</p>
+        </article>`;
+    }).join("") || '<p class="panel-caption">No hay SubSistemas asociados a FMR en el archivo.</p>';
+}
+
 function renderDashboard(model, filename) {
     const totalNoEta = model.delivery.noEta;
     const totalFuture = model.delivery.futureEta;
     const statusItems = Object.entries(model.statusCounts).map(function([label, count]) { return { label, count }; }).sort(function(a, b) { return b.count - a.count; });
     const weekItems = model.weeks.sort(function(a, b) { return asDate(a.label) - asDate(b.label); });
     const subsystemItems = model.subsystemCounts.sort(function(a, b) { return b.count - a.count; }).slice(0, 7);
-    const riskItems = model.summary.filter(function(item) { return item.noEta || item.futureEta; }).sort(function(a, b) {
-        return (b.noEta + b.futureEta) - (a.noEta + a.futureEta);
-    }).slice(0, 10);
-
     document.getElementById("metric-fmr").textContent = model.fmrs.length;
     document.getElementById("metric-fmr-note").textContent = `${model.fileRows} filas normalizadas`;
     document.getElementById("metric-subsystems").textContent = model.subsystems.length;
@@ -286,15 +427,11 @@ function renderDashboard(model, filename) {
     renderBars("status-chart", statusItems, Math.max(...statusItems.map(function(item) { return item.count; }), 1));
     renderDelivery(model.delivery, model.poCount);
     renderEtaPeriods(model.etaPeriods);
+    renderSubsystemImpact(model.subsystemImpact, model.subsystemImpactTotals);
     renderBars("week-chart", weekItems, Math.max(...weekItems.map(function(item) { return item.count; }), 1));
     document.getElementById("subsystem-table").innerHTML = subsystemItems.map(function(item, index) {
         return `<div class="rank-row"><span class="rank-number">${String(index + 1).padStart(2, "0")}</span><span class="rank-name" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</span><span class="rank-count">${item.count}</span></div>`;
     }).join("") || "<p class=\"panel-caption\">Sin datos disponibles.</p>";
-    document.getElementById("risk-table").innerHTML = riskItems.map(function(item) {
-        const risk = item.noEta >= item.futureEta && item.noEta ? "high" : "";
-        const status = item.noEta ? "Sin ETA" : "ETA futura";
-        return `<tr><td><strong>${escapeHtml(item.fmr)}</strong></td><td>${item.subsystems}</td><td>${item.po}</td><td>${item.noEta}</td><td>${item.futureEta}</td><td><span class="status-chip ${risk}">${status}</span></td></tr>`;
-    }).join("") || "<tr><td colspan=\"6\">No hay FMR con exposición identificada.</td></tr>";
 }
 
 async function procesarDashboardLocal(buffer, filename, guardar = true) {

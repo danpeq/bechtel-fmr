@@ -366,8 +366,8 @@ function seleccionarSubsistemaBusqueda(subsistema) {
     }
 
     vista.subsistemaBusqueda = subsistema;
-    fmrSearch.value = subsistema;
-    filtrarSubsistemasBusqueda(subsistema);
+    fmrSearch.value = "";
+    filtrarSubsistemasBusqueda("");
     listaSubsistemasGeneral.querySelectorAll(".subsistema-item").forEach(function(boton) {
         boton.classList.toggle("selected", boton === botonSeleccionado);
     });
