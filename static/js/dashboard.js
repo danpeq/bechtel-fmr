@@ -168,7 +168,7 @@ function buildSubsystemImpact(rows) {
             impactPercent: 100 - coveragePercent
         };
     }).sort(function(a, b) {
-        return a.coveragePercent - b.coveragePercent || b.withoutEta - a.withoutEta || a.subsystem.localeCompare(b.subsystem);
+        return a.impactPercent - b.impactPercent || a.subsystem.localeCompare(b.subsystem);
     });
 
     const totalScore = items.reduce(function(sum, item) {
@@ -215,6 +215,16 @@ function buildModel(workbook) {
         splitPO(row.PO).forEach(function(po) {
             poRows.push({ row, po });
         });
+    });
+
+    const poRecords = new Map();
+    poRows.forEach(function(item) {
+        const fmr = text(item.row.FMR);
+        const key = `${fmr}|${item.po}`;
+        if (!poRecords.has(key)) {
+            poRecords.set(key, { fmr, po: item.po, rows: [] });
+        }
+        poRecords.get(key).rows.push(item.row);
     });
 
     const etaEntries = [];
@@ -292,13 +302,29 @@ function buildModel(workbook) {
         statusCounts[item.status] = (statusCounts[item.status] || 0) + 1;
     });
 
+    const deliveryDetails = { onSite: [], noEta: [], futureEta: [] };
+    poRecords.forEach(function(record) {
+        const summary = {
+            fmr: record.fmr,
+            po: record.po,
+            description: unique(record.rows.map(function(row) { return row.DESCRIPCION; })).join(" · ") || "Sin descripción"
+        };
+        if (record.rows.some(function(row) { return Boolean(text(row["ON SITE"])); })) {
+            deliveryDetails.onSite.push(summary);
+        }
+        if (record.rows.some(function(row) { return !text(row.ETA); })) {
+            deliveryDetails.noEta.push(summary);
+        }
+        if (record.rows.some(function(row) {
+            return splitETAs(row.ETA).some(function(eta) { return eta > today; });
+        })) {
+            deliveryDetails.futureEta.push(summary);
+        }
+    });
     const delivery = {
-        onSite: unique(poRows.filter(function(item) { return text(item.row["ON SITE"]); }).map(function(item) { return `${item.row.FMR}|${item.po}`; })).length,
-        noEta: unique(poRows.filter(function(item) { return !text(item.row.ETA); }).map(function(item) { return `${item.row.FMR}|${item.po}`; })).length,
-        futureEta: unique(poRows.filter(function(item) {
-            const eta = asDate(text(item.row.ETA).split(/[\n;,]/)[0]);
-            return eta && eta > new Date();
-        }).map(function(item) { return `${item.row.FMR}|${item.po}`; })).length
+        onSite: deliveryDetails.onSite.length,
+        noEta: deliveryDetails.noEta.length,
+        futureEta: deliveryDetails.futureEta.length
     };
 
     const weeks = {};
@@ -327,6 +353,7 @@ function buildModel(workbook) {
         summary: fmrSummary,
         statusCounts,
         delivery,
+        deliveryDetails,
         etaPeriods,
         subsystemImpact: subsystemImpact.items,
         subsystemImpactTotals: subsystemImpact.totals,
@@ -343,27 +370,95 @@ function renderBars(targetId, items, maxValue) {
     }).join("") : "<p class=\"panel-caption\">Sin datos disponibles.</p>";
 }
 
-function renderDelivery(delivery, totalPO) {
+function renderDelivery(delivery, deliveryDetails, totalPO) {
     const values = [
-        { label: "Con ON SITE", value: delivery.onSite, color: "var(--teal)" },
-        { label: "Sin ETA", value: delivery.noEta, color: "var(--amber)" },
-        { label: "ETA futura", value: delivery.futureEta, color: "var(--red)" }
+        { key: "onSite", label: "Con ON SITE", value: delivery.onSite, color: "var(--teal)" },
+        { key: "noEta", label: "Sin ETA", value: delivery.noEta, color: "var(--amber)" },
+        { key: "futureEta", label: "ETA futura", value: delivery.futureEta, color: "var(--red)" }
     ];
-    const sum = values.reduce(function(total, item) { return total + item.value; }, 0);
-    const denominator = Math.max(totalPO, 1);
+    const totalSignals = values.reduce(function(total, item) { return total + item.value; }, 0);
+    const denominator = Math.max(totalSignals, 1);
     let cursor = 0;
     const stops = values.map(function(item) {
         const start = cursor;
         cursor += (item.value / denominator) * 360;
         return `${item.color} ${start}deg ${cursor}deg`;
     }).join(", ");
+    const gradient = totalSignals
+        ? `conic-gradient(${stops})`
+        : "conic-gradient(#d9e1dc 0deg 360deg)";
     document.getElementById("delivery-chart").innerHTML = `
-        <div class="donut" style="background:conic-gradient(${stops || "#d9e1dc 0deg 360deg"})">
+        <div class="donut" aria-label="Gráfico de riesgos de entrega; seleccione un sector o su leyenda" style="background:${gradient}">
             <div class="donut-hole">${totalPO}<small>PO totales</small></div>
         </div>
         <div class="legend">${values.map(function(item) {
-            return `<div class="legend-item"><span class="legend-dot" style="background:${item.color}"></span><span>${item.label}</span><span class="legend-value">${item.value}</span></div>`;
+            return `<button type="button" class="legend-item delivery-filter" data-category="${item.key}" aria-pressed="false"><span class="legend-dot" style="background:${item.color}"></span><span>${item.label}</span><span class="legend-value">${item.value}</span></button>`;
         }).join("")}</div>`;
+
+    const detailPanel = document.getElementById("delivery-detail");
+    const filterButtons = [...document.querySelectorAll(".delivery-filter")];
+    let selectedCategory = "";
+
+    function selectCategory(category) {
+        if (selectedCategory === category) {
+            selectedCategory = "";
+            detailPanel.hidden = true;
+            filterButtons.forEach(function(button) { button.setAttribute("aria-pressed", "false"); });
+            return;
+        }
+
+        selectedCategory = category;
+        filterButtons.forEach(function(button) {
+            button.setAttribute("aria-pressed", String(button.dataset.category === category));
+        });
+        const selected = values.find(function(item) { return item.key === category; });
+        const records = deliveryDetails[category] || [];
+        detailPanel.innerHTML = `
+            <div class="delivery-detail-heading">
+                <div><h3>${selected.label}</h3><p>${records.length} PO asociadas</p></div>
+                <button type="button" class="delivery-detail-close">Cerrar</button>
+            </div>
+            <div class="delivery-table-scroll"><table>
+                <thead><tr><th>FMR</th><th>Descripción</th><th>PO</th></tr></thead>
+                <tbody>${records.map(function(record) {
+                    return `<tr><td><strong>${escapeHtml(record.fmr)}</strong></td><td><span class="delivery-description" title="${escapeHtml(record.description)}">${escapeHtml(record.description)}</span></td><td>${escapeHtml(record.po)}</td></tr>`;
+                }).join("") || '<tr><td colspan="3">No hay PO en esta categoría.</td></tr>'}</tbody>
+            </table></div>`;
+        detailPanel.hidden = false;
+        detailPanel.querySelector(".delivery-detail-close").addEventListener("click", function() {
+            selectedCategory = "";
+            detailPanel.hidden = true;
+            filterButtons.forEach(function(button) { button.setAttribute("aria-pressed", "false"); });
+        });
+    }
+
+    filterButtons.forEach(function(button) {
+        button.addEventListener("click", function() { selectCategory(button.dataset.category); });
+    });
+
+    const donut = document.querySelector(".donut");
+    donut.addEventListener("click", function(event) {
+        if (!totalSignals) {
+            return;
+        }
+        const bounds = donut.getBoundingClientRect();
+        const radius = Math.min(bounds.width, bounds.height) / 2;
+        const x = event.clientX - (bounds.left + bounds.width / 2);
+        const y = event.clientY - (bounds.top + bounds.height / 2);
+        if (Math.hypot(x, y) < radius * 0.63) {
+            return;
+        }
+        const angle = (Math.atan2(y, x) * 180 / Math.PI + 450) % 360;
+        let boundary = 0;
+        for (const item of values) {
+            const nextBoundary = boundary + (item.value / totalSignals) * 360;
+            if (item.value && angle >= boundary && angle < nextBoundary) {
+                selectCategory(item.key);
+                break;
+            }
+            boundary = nextBoundary;
+        }
+    });
 }
 
 function renderEtaPeriods(periods) {
@@ -425,7 +520,7 @@ function renderDashboard(model, filename) {
         : "";
 
     renderBars("status-chart", statusItems, Math.max(...statusItems.map(function(item) { return item.count; }), 1));
-    renderDelivery(model.delivery, model.poCount);
+    renderDelivery(model.delivery, model.deliveryDetails, model.poCount);
     renderEtaPeriods(model.etaPeriods);
     renderSubsystemImpact(model.subsystemImpact, model.subsystemImpactTotals);
     renderBars("week-chart", weekItems, Math.max(...weekItems.map(function(item) { return item.count; }), 1));

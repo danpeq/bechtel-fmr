@@ -97,7 +97,7 @@ h2 { margin-bottom: 0; font-size: 22px; line-height: 1.1; font-weight: 600; }
 .eta-empty { margin: 0; padding: 17px 15px; color: var(--muted); font: 12px "Trebuchet MS", Arial, sans-serif; }
 
 .dashboard-grid { display: grid; gap: 18px; margin-bottom: 18px; }
-.dashboard-grid-main { grid-template-columns: 1.25fr 0.75fr; }
+.dashboard-grid-main { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .dashboard-grid-secondary { grid-template-columns: 1fr 1fr; }
 .panel { min-width: 0; padding: 22px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); }
 .panel-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 24px; }
@@ -112,13 +112,30 @@ h2 { margin-bottom: 0; font-size: 22px; line-height: 1.1; font-weight: 600; }
 .compact-chart .bar-row { grid-template-columns: 110px 1fr 34px; }
 
 .donut-layout { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 26px; min-height: 170px; }
-.donut { display: grid; place-items: center; width: 140px; height: 140px; border-radius: 50%; background: conic-gradient(var(--teal) 0deg, var(--teal) 120deg, var(--amber) 120deg, var(--amber) 240deg, var(--red) 240deg); }
+.donut { display: grid; place-items: center; width: 140px; height: 140px; border-radius: 50%; background: conic-gradient(var(--teal) 0deg, var(--teal) 120deg, var(--amber) 120deg, var(--amber) 240deg, var(--red) 240deg); cursor: pointer; }
 .donut-hole { display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; background: var(--panel); color: var(--ink); text-align: center; font: 700 18px "Trebuchet MS", Arial, sans-serif; }
 .donut-hole small { display: block; color: var(--muted); font-size: 10px; font-weight: 400; }
 .legend { display: grid; gap: 13px; font: 12px "Trebuchet MS", Arial, sans-serif; }
-.legend-item { display: grid; grid-template-columns: 9px 1fr auto; gap: 8px; align-items: center; }
+.legend-item { display: grid; grid-template-columns: 9px 1fr auto; gap: 8px; align-items: center; width: 100%; padding: 5px 7px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.legend-item[aria-pressed="true"] { background: var(--mint); font-weight: 700; }
 .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
 .legend-value { color: var(--muted); }
+
+.delivery-detail { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.delivery-detail[hidden] { display: none; }
+.delivery-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.delivery-detail-heading h3 { margin: 0 0 4px; font: 700 15px "Trebuchet MS", Arial, sans-serif; }
+.delivery-detail-heading p { margin: 0; color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
+.delivery-detail-close { min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; font: 12px "Trebuchet MS", Arial, sans-serif; }
+.delivery-table-scroll { max-height: 238px; overflow: auto; }
+.delivery-detail table { table-layout: fixed; font: 12px "Trebuchet MS", Arial, sans-serif; }
+.delivery-detail th { position: sticky; top: 0; z-index: 1; padding: 8px; background: var(--panel); box-shadow: 0 1px 0 var(--line); }
+.delivery-detail th:nth-child(1) { width: 22%; }
+.delivery-detail th:nth-child(2) { width: 56%; }
+.delivery-detail th:nth-child(3) { width: 22%; }
+.delivery-detail tbody tr { height: 42px; }
+.delivery-detail td { height: 42px; overflow: hidden; padding: 8px; white-space: nowrap; text-overflow: ellipsis; }
+.delivery-description { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .rank-list { display: grid; gap: 13px; }
 .rank-row { display: grid; grid-template-columns: 27px 1fr 46px; gap: 10px; align-items: center; font: 13px "Trebuchet MS", Arial, sans-serif; }
@@ -157,14 +174,14 @@ td { padding: 13px 12px; border-top: 1px solid var(--line); white-space: nowrap;
 .impact-summary-item { display: grid; gap: 5px; min-width: 0; }
 .impact-summary-item strong { color: var(--teal-dark); font: 500 26px/1 Georgia, serif; }
 .impact-summary-item span { color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
-.subsystem-impact-list { display: grid; }
+.subsystem-impact-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 18px; }
 .subsystem-impact-row { min-width: 0; padding: 17px 0; border-bottom: 1px solid var(--line); }
 .impact-row-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
 .impact-row-heading h3 { margin: 0 0 4px; font: 700 15px "Trebuchet MS", Arial, sans-serif; }
 .impact-row-heading p { margin: 0; color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
 .impact-percent { color: var(--teal-dark); text-align: right; font: 700 22px/1 "Trebuchet MS", Arial, sans-serif; }
 .impact-percent small { display: block; margin-top: 4px; color: var(--muted); font: 10px "Trebuchet MS", Arial, sans-serif; }
-.impact-progress { height: 9px; overflow: hidden; margin: 12px 0 9px; background: #edf2ef; }
+.impact-progress { width: min(100%, 220px); height: 9px; overflow: hidden; margin: 12px 0 9px; background: #edf2ef; }
 .impact-progress span { display: block; height: 100%; background: var(--teal); }
 .impact-breakdown { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
 .impact-risk { margin: 8px 0 0; color: var(--muted); font: 12px "Trebuchet MS", Arial, sans-serif; }
@@ -172,9 +189,13 @@ td { padding: 13px 12px; border-top: 1px solid var(--line); white-space: nowrap;
 
 @media (max-width: 900px) {
     .impact-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .subsystem-impact-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
     .impact-row-heading { gap: 8px; }
     .impact-percent { font-size: 20px; }
+    .subsystem-impact-list { grid-template-columns: 1fr; }
+    .donut-layout { gap: 16px; }
+    .delivery-table-scroll { max-height: 238px; }
 }
