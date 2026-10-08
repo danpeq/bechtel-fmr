@@ -19,6 +19,8 @@ const vista = {
 };
 
 const threeweekSelect = document.getElementById("threeweek-select");
+const descripcionSearch = document.getElementById("descripcion-search");
+const estadoBusquedaDescripcion = document.getElementById("estado-busqueda-descripcion");
 const fmrSearch = document.getElementById("fmr-search");
 const fmrSearchLabel = document.getElementById("fmr-search-label");
 const modoBusquedaButton = document.getElementById("modo-busqueda-button");
@@ -52,6 +54,7 @@ resultadoFMRSearch.style.display = "none";
 detalleFMR.style.display = "none";
 subsistemaSeleccionadoDiv.style.display = "none";
 threeweekSelect.disabled = true;
+descripcionSearch.disabled = true;
 fmrSearch.disabled = true;
 
 function texto(valor) {
@@ -317,12 +320,51 @@ function crearBoton(textoBoton, clase, color, alClick) {
 function cargarTodasLasFMR() {
     listaFMRsGeneral.innerHTML = "";
     estado.fmrs.forEach(function(fmr) {
-        const datos = obtenerDatosFMR(fmr);
-        listaFMRsGeneral.appendChild(crearBoton(fmr, "fmr-general-item", obtenerColorFMR(datos), function() {
-            fmrSearch.value = fmr;
-            buscarFMR(fmr);
-        }));
+        listaFMRsGeneral.appendChild(crearBotonFMRGeneral(fmr));
     });
+}
+
+function crearBotonFMRGeneral(fmr) {
+    const datos = obtenerDatosFMR(fmr);
+    return crearBoton(fmr, "fmr-general-item", obtenerColorFMR(datos), function() {
+        fmrSearch.value = fmr;
+        buscarFMR(fmr);
+    });
+}
+
+function buscarFMRPorDescripcion() {
+    const consulta = texto(descripcionSearch.value).toLocaleLowerCase();
+    if (!consulta) {
+        estadoBusquedaDescripcion.textContent = "Escriba una descripción para buscar.";
+        return;
+    }
+
+    vista.modoBusqueda = "fmr";
+    vista.fmrDeRegreso = "";
+    vista.subsistemaBusqueda = "";
+    fmrSearch.value = "";
+    regresarAFMRButton.style.display = "none";
+    infoSubsistema.style.display = "none";
+    resultadoFMRSearch.style.display = "none";
+    detalleFMR.style.display = "none";
+    subsistemaGeneralSeleccionado.style.display = "none";
+    actualizarModoBusqueda();
+
+    const coincidencias = valoresUnicos(estado.normalizado.filter(function(fila) {
+        return texto(fila.DESCRIPCION).toLocaleLowerCase().includes(consulta);
+    }).map(function(fila) { return fila.FMR; }));
+
+    listaFMRsGeneral.innerHTML = "";
+    if (!coincidencias.length) {
+        listaFMRsGeneral.innerHTML = "<p class=\"mensaje-vacio\">No se encontraron FMR para esa descripción.</p>";
+        estadoBusquedaDescripcion.textContent = "0 FMR encontradas";
+        return;
+    }
+
+    coincidencias.forEach(function(fmr) {
+        listaFMRsGeneral.appendChild(crearBotonFMRGeneral(fmr));
+    });
+    estadoBusquedaDescripcion.textContent = `${coincidencias.length} FMR encontradas`;
 }
 
 function actualizarModoBusqueda() {
@@ -331,6 +373,7 @@ function actualizarModoBusqueda() {
     modoBusquedaButton.disabled = !estado.cargado;
     ayudaBusqueda.hidden = estado.cargado;
     fmrSearch.disabled = !estado.cargado;
+    descripcionSearch.disabled = !estado.cargado;
     fmrSearchLabel.textContent = modoSubsistema ? "Búsqueda por Subsistema" : "Búsqueda de FMR";
     fmrSearch.placeholder = modoSubsistema
         ? "Seleccione o escriba un Subsistema"
@@ -424,12 +467,15 @@ function cambiarModoBusqueda() {
     detalleFMR.style.display = "none";
     regresarAFMRButton.style.display = "none";
     fmrSearch.value = "";
+    descripcionSearch.value = "";
+    estadoBusquedaDescripcion.textContent = "";
     vista.subsistemaBusqueda = "";
 
     if (siguienteModo === "subsistema") {
         cargarSubsistemasBusqueda();
     } else {
         vista.subsistemaBusqueda = "";
+        cargarTodasLasFMR();
     }
     actualizarModoBusqueda();
 }
@@ -657,6 +703,8 @@ async function procesarArchivoLocal(contenido, nombre, guardar = true) {
         prepararDatos(workbook);
         estado.cargado = true;
         vista.modoBusqueda = "fmr";
+        descripcionSearch.value = "";
+        estadoBusquedaDescripcion.textContent = "";
         threeweekSelect.disabled = false;
         actualizarModoBusqueda();
         estadoCarga.textContent = `${nombre} cargado. El análisis se ejecuta en el navegador.`;
@@ -706,6 +754,8 @@ threeweekSelect.addEventListener("change", function() {
     vista.fmrDeRegreso = "";
     vista.subsistemaBusqueda = "";
     fmrSearch.value = "";
+    descripcionSearch.value = "";
+    estadoBusquedaDescripcion.textContent = "";
     actualizarModoBusqueda();
     regresarAFMRButton.style.display = "none";
     threeweekSeleccionado = this.value.trim();
@@ -740,6 +790,13 @@ fmrSearch.addEventListener("keydown", function(event) {
             return;
         }
         buscarFMR(this.value);
+    }
+});
+
+descripcionSearch.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        buscarFMRPorDescripcion();
     }
 });
 

@@ -33,9 +33,10 @@
 
     <header class="main-header">
 
-        <h1>
-            Análisis de FMR - Procura
-        </h1>
+        <div class="main-title-group">
+            <h1>Análisis de FMR - Procura</h1>
+            <small class="main-title-note">Solo se toman en cuenta FMR a partir del 18-Sept-2026</small>
+        </div>
 
         <a
             class="dashboard-button"
@@ -78,7 +79,7 @@
              3WEEK
         =================================================== -->
 
-        <div class="filtro-item">
+        <div class="filtro-item filtro-week">
 
             <label for="threeweek-select">
                 Seleccione 3week
@@ -94,6 +95,30 @@
                 </option>
 
             </select>
+
+        </div>
+
+
+        <!-- ==================================================
+             BÚSQUEDA POR DESCRIPCIÓN
+        =================================================== -->
+
+        <div class="filtro-item">
+
+            <label for="descripcion-search">
+                Descripción de FMR
+            </label>
+
+            <input
+                type="search"
+                id="descripcion-search"
+                class="fmr-search-input"
+                disabled
+                placeholder="Escriba una descripción y presione Enter"
+                autocomplete="off"
+            >
+
+            <small id="estado-busqueda-descripcion" class="search-mode-hint" aria-live="polite"></small>
 
         </div>
 

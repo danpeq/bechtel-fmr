@@ -67,6 +67,19 @@ header {
         20px;
 }
 
+.main-title-group {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+}
+
+.main-title-note {
+    color: #68737d;
+    font-size: 12px;
+    font-weight: 400;
+}
+
 
 .dashboard-button {
 
@@ -83,16 +96,16 @@ header {
         10px 16px;
 
     border:
-        1px solid #333;
+        1px solid #A9A9A9;
 
     border-radius:
         6px;
 
     background-color:
-        #333;
+        #A9A9A9;
 
     color:
-        #fff;
+        #222;
 
     font-size:
         14px;
@@ -108,7 +121,7 @@ header {
 .dashboard-button:hover {
 
     background-color:
-        #555;
+        #999;
 }
 
 
@@ -135,22 +148,13 @@ header h1 {
         grid;
 
     grid-template-columns:
-        repeat(
-            2,
-            minmax(
-                300px,
-                1fr
-            )
-        );
+        repeat(3, minmax(0, 1fr));
 
     gap:
-        35px;
-
-    max-width:
-        1000px;
+        18px;
 
     margin:
-        0 auto 30px;
+        0 0 30px;
 }
 
 
@@ -214,6 +218,11 @@ header h1 {
 
     border-color:
         #777;
+}
+
+#threeweek-select {
+    width: 50%;
+    min-width: 0;
 }
 
 .fmr-search-controls {
@@ -942,6 +951,12 @@ header h1 {
             15px;
     }
 
+    #threeweek-select {
+        width: 50%;
+        min-width: 0;
+        max-width: none;
+    }
+
 
     .fmr-summary-container {
 
@@ -964,6 +979,10 @@ header h1 {
 
         width:
             92%;
+    }
+
+    #threeweek-select {
+        width: 100%;
     }
 
 
