@@ -73,6 +73,14 @@
                     <h2 id="eta-section-title">Calendario de ETA</h2>
                 </div>
                 <div id="eta-periods" class="eta-period-grid" aria-live="polite"></div>
+                <section class="eta-week-section" aria-labelledby="eta-week-title">
+                    <div class="eta-week-heading">
+                        <span class="section-kicker">PLANIFICACIÓN DE ENTREGAS</span>
+                        <h3 id="eta-week-title">PO con ETA por semana</h3>
+                        <p>Semana actual y dos próximas · viernes a jueves</p>
+                    </div>
+                    <div id="eta-week-chart" class="eta-week-chart" aria-label="Cantidad de PO con ETA por semana y PO sin ETA"></div>
+                </section>
             </section>
 
             <div class="dashboard-grid dashboard-grid-main">
@@ -97,29 +105,6 @@
                     </div>
                     <div id="delivery-chart" class="donut-layout"></div>
                     <div id="delivery-detail" class="delivery-detail" hidden></div>
-                </section>
-            </div>
-
-            <div class="dashboard-grid dashboard-grid-secondary">
-                <section class="panel">
-                    <div class="panel-heading">
-                        <div>
-                            <span class="section-kicker">PLANIFICACIÓN</span>
-                            <h2>FMR por 3week</h2>
-                        </div>
-                    </div>
-                    <div id="week-chart" class="bar-chart compact-chart"></div>
-                </section>
-
-                <section class="panel">
-                    <div class="panel-heading">
-                        <div>
-                            <span class="section-kicker">CONCENTRACIÓN</span>
-                            <h2>SubSistemas con mayor carga</h2>
-                        </div>
-                        <span class="panel-caption">FMR únicas</span>
-                    </div>
-                    <div id="subsystem-table" class="rank-list"></div>
                 </section>
             </div>
 

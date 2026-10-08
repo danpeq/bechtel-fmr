@@ -245,7 +245,7 @@ function buildModel(workbook) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - (today.getDay() + 6) % 7);
+    weekStart.setDate(today.getDate() - (today.getDay() + 2) % 7);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -268,8 +268,42 @@ function buildModel(workbook) {
         makePeriod("Semana presente", `${dateLabel(weekStart)} - ${dateLabel(weekEnd)}`, weekStart, weekEnd),
         makePeriod("Mes presente", monthName(monthStart), monthStart, new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)),
         makePeriod("Próximo mes", monthName(nextMonthStart), nextMonthStart, new Date(today.getFullYear(), today.getMonth() + 2, 0, 23, 59, 59, 999)),
-        makePeriod("Próximos dos meses", `${monthName(nextMonthStart)} - ${monthName(new Date(today.getFullYear(), today.getMonth() + 2, 1))}`, nextMonthStart, new Date(today.getFullYear(), today.getMonth() + 3, 0, 23, 59, 59, 999))
+        makePeriod("Próximos dos meses", `${monthName(nextMonthStart)} - ${monthName(new Date(today.getFullYear(), today.getMonth() + 2, 1))}`, nextMonthStart, new Date(today.getFullYear(), today.getMonth() + 3, 0, 23, 59, 59, 999)),
+        {
+            label: "PO sin ETA",
+            range: "Sin fecha ETA registrada",
+            noEta: true,
+            entries: [...poRecords.values()].filter(function(record) {
+                return !record.rows.some(function(row) { return splitETAs(row.ETA).length > 0; });
+            }).map(function(record) {
+                return {
+                    fmr: record.fmr,
+                    po: record.po,
+                    description: unique(record.rows.map(function(row) { return row.DESCRIPCION; })).join(" · ")
+                };
+            }).sort(function(a, b) { return a.fmr.localeCompare(b.fmr) || a.po.localeCompare(b.po); })
+        }
     ];
+
+    const weeklyEta = Array.from({ length: 3 }, function(_, index) {
+        const start = new Date(weekStart);
+        start.setDate(weekStart.getDate() + index * 7);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        const poKeys = new Set();
+        etaEntries.forEach(function(entry) {
+            if (entry.eta >= start && entry.eta <= end) {
+                poKeys.add(`${entry.fmr}|${entry.po}`);
+            }
+        });
+        return {
+            label: index === 0 ? "Semana actual" : (index === 1 ? "Próxima semana" : "Semana subsiguiente"),
+            range: `${dateLabel(start)} - ${dateLabel(end)}`,
+            count: poKeys.size
+        };
+    });
+    weeklyEta.push({ label: "Sin ETA", range: "", count: etaPeriods[4].entries.length, noEta: true });
 
     const poKeys = unique(poRows.map(function(item) {
         return `${text(item.row.FMR)}|${item.po}`;
@@ -327,22 +361,6 @@ function buildModel(workbook) {
         futureEta: deliveryDetails.futureEta.length
     };
 
-    const weeks = {};
-    validRows.forEach(function(row) {
-        const week = dateLabel(row["3week"]) || "Sin fecha";
-        weeks[week] = weeks[week] || new Set();
-        weeks[week].add(text(row.FMR));
-    });
-
-    const subsystemCounts = {};
-    validRows.forEach(function(row) {
-        const subsystem = text(row.SubSistema);
-        if (!subsystem) {
-            return;
-        }
-        subsystemCounts[subsystem] = subsystemCounts[subsystem] || new Set();
-        subsystemCounts[subsystem].add(text(row.FMR));
-    });
     const subsystemImpact = buildSubsystemImpact(validRows);
 
     return {
@@ -355,10 +373,9 @@ function buildModel(workbook) {
         delivery,
         deliveryDetails,
         etaPeriods,
+        weeklyEta,
         subsystemImpact: subsystemImpact.items,
-        subsystemImpactTotals: subsystemImpact.totals,
-        weeks: Object.entries(weeks).map(function([label, values]) { return { label, count: values.size }; }),
-        subsystemCounts: Object.entries(subsystemCounts).map(function([label, values]) { return { label, count: values.size }; })
+        subsystemImpactTotals: subsystemImpact.totals
     };
 }
 
@@ -464,6 +481,9 @@ function renderDelivery(delivery, deliveryDetails, totalPO) {
 function renderEtaPeriods(periods) {
     document.getElementById("eta-periods").innerHTML = periods.map(function(period) {
         const entries = period.entries.map(function(entry) {
+            if (period.noEta) {
+                return `<li class="no-eta-entry"><span><strong>${escapeHtml(entry.fmr)}</strong><small>PO ${escapeHtml(entry.po)}</small></span></li>`;
+            }
             return `<li><time>${dateLabel(entry.eta)}</time><span><strong>${escapeHtml(entry.fmr)}</strong><small>PO ${escapeHtml(entry.po)}</small></span></li>`;
         }).join("");
         return `<article class="eta-period-card">
@@ -471,6 +491,35 @@ function renderEtaPeriods(periods) {
             ${entries ? `<ul>${entries}</ul>` : '<p class="eta-empty">Sin fechas ETA en este periodo.</p>'}
         </article>`;
     }).join("");
+}
+
+function renderEtaWeekChart(items) {
+    const maximum = Math.max(...items.map(function(item) { return item.count; }), 1);
+    const ticks = [...new Set([maximum, Math.ceil(maximum * 0.75), Math.ceil(maximum * 0.5), Math.ceil(maximum * 0.25), 0])];
+
+    document.getElementById("eta-week-chart").innerHTML = `
+        <div class="eta-chart-y-title">Total de PO</div>
+        <div class="eta-chart-layout">
+            <div class="eta-chart-y-axis">${ticks.map(function(value) { return `<span>${value}</span>`; }).join("")}</div>
+            <div class="eta-chart-main">
+                <div class="eta-chart-plot">
+                    <div class="eta-chart-grid-lines" aria-hidden="true">${ticks.map(function() { return "<span></span>"; }).join("")}</div>
+                    <div class="eta-chart-columns">${items.map(function(item) {
+                        const ratio = item.count / maximum;
+                        const height = item.count ? Math.max(3, ratio * 100) : 0;
+                        const background = item.noEta ? "#F89880" : "linear-gradient(180deg, #8bb6d5, #285f88)";
+                        const opacity = item.noEta ? 1 : 0.45 + ratio * 0.55;
+                        return `<div class="eta-chart-column">
+                            <strong class="eta-chart-value" style="--bar-height:${height}%">${item.count}</strong>
+                            <span class="eta-chart-bar${item.noEta ? " eta-chart-bar-no-eta" : ""}" style="--bar-height:${height}%;--bar-opacity:${opacity};background:${background}"></span>
+                        </div>`;
+                    }).join("")}</div>
+                </div>
+                <div class="eta-chart-x-axis">${items.map(function(item) {
+                    return `<div><strong>${escapeHtml(item.label)}</strong>${item.range ? `<small>${escapeHtml(item.range)}</small>` : ""}</div>`;
+                }).join("")}</div>
+            </div>
+        </div>`;
 }
 
 function renderSubsystemImpact(items, totals) {
@@ -500,10 +549,8 @@ function renderDashboard(model, filename) {
     const totalNoEta = model.delivery.noEta;
     const totalFuture = model.delivery.futureEta;
     const statusItems = Object.entries(model.statusCounts).map(function([label, count]) { return { label, count }; }).sort(function(a, b) { return b.count - a.count; });
-    const weekItems = model.weeks.sort(function(a, b) { return asDate(a.label) - asDate(b.label); });
-    const subsystemItems = model.subsystemCounts.sort(function(a, b) { return b.count - a.count; }).slice(0, 7);
     document.getElementById("metric-fmr").textContent = model.fmrs.length;
-    document.getElementById("metric-fmr-note").textContent = `${model.fileRows} filas normalizadas`;
+    document.getElementById("metric-fmr-note").textContent = `${model.fileRows} Items`;
     document.getElementById("metric-subsystems").textContent = model.subsystems.length;
     document.getElementById("metric-po").textContent = model.poCount;
     document.getElementById("metric-po-note").textContent = `${totalFuture} con ETA futura`;
@@ -522,11 +569,8 @@ function renderDashboard(model, filename) {
     renderBars("status-chart", statusItems, Math.max(...statusItems.map(function(item) { return item.count; }), 1));
     renderDelivery(model.delivery, model.deliveryDetails, model.poCount);
     renderEtaPeriods(model.etaPeriods);
+    renderEtaWeekChart(model.weeklyEta);
     renderSubsystemImpact(model.subsystemImpact, model.subsystemImpactTotals);
-    renderBars("week-chart", weekItems, Math.max(...weekItems.map(function(item) { return item.count; }), 1));
-    document.getElementById("subsystem-table").innerHTML = subsystemItems.map(function(item, index) {
-        return `<div class="rank-row"><span class="rank-number">${String(index + 1).padStart(2, "0")}</span><span class="rank-name" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</span><span class="rank-count">${item.count}</span></div>`;
-    }).join("") || "<p class=\"panel-caption\">Sin datos disponibles.</p>";
 }
 
 async function procesarDashboardLocal(buffer, filename, guardar = true) {
