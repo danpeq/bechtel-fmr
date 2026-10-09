@@ -2,6 +2,12 @@ const fileInput = document.getElementById("dashboard-file");
 const statusMessage = document.getElementById("dashboard-status");
 const emptyState = document.getElementById("dashboard-empty");
 const content = document.getElementById("dashboard-content");
+const subsystemImpactList = document.getElementById("subsystem-impact-list");
+const subsystemModal = document.getElementById("subsystem-modal");
+const subsystemModalTitle = document.getElementById("subsystem-modal-title");
+const subsystemModalSubtitle = document.getElementById("subsystem-modal-subtitle");
+const subsystemModalBody = document.getElementById("subsystem-modal-body");
+let impactItems = [];
 
 function text(value) {
     return value === null || value === undefined ? "" : String(value).trim();
@@ -116,12 +122,13 @@ function buildSubsystemImpact(rows) {
         let partial = 0;
         let pending = 0;
         let withoutEta = 0;
+        const details = [];
 
-        fmrs.forEach(function(fmrData) {
-            const pos = fmrData.pos.size
-                ? [...fmrData.pos.values()]
-                : [fmrData.rowsWithoutPO];
-            const scores = pos.map(function(rowsForPO) {
+        fmrs.forEach(function(fmrData, fmr) {
+            const poGroups = fmrData.pos.size
+                ? [...fmrData.pos.entries()]
+                : [["Sin PO", fmrData.rowsWithoutPO]];
+            const scores = poGroups.map(function([po, rowsForPO]) {
                 const isArrived = rowsForPO.some(function(row) {
                     return text(row["ON SITE"]).toLocaleLowerCase() === "on site" || delivered(row.ENTREGADO);
                 });
@@ -129,6 +136,7 @@ function buildSubsystemImpact(rows) {
                     return text(row["ON SITE"]).toLocaleLowerCase() === "on site - parcial";
                 });
                 const hasEta = rowsForPO.some(function(row) { return splitETAs(row.ETA).length > 0; });
+                details.push({ fmr, po, category: isArrived ? "onSite" : (isPartial ? "partial" : "pending") });
                 return {
                     score: isArrived ? 1 : (isPartial ? 0.5 : 0),
                     withoutEta: !isArrived && !hasEta
@@ -163,6 +171,7 @@ function buildSubsystemImpact(rows) {
             partial,
             pending,
             withoutEta,
+            details,
             coverageScore,
             coveragePercent,
             impactPercent: 100 - coveragePercent
@@ -245,27 +254,44 @@ function buildModel(workbook) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - (today.getDay() + 2) % 7);
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
+    weekStart.setDate(today.getDate() - (today.getDay() + 1) % 7);
+    const weekRange = function(index) {
+        const start = new Date(weekStart);
+        start.setDate(weekStart.getDate() + index * 7);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        end.setHours(23, 59, 59, 999);
+        return { start, end };
+    };
+    const currentWeek = weekRange(0);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const nextMonthStart = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     const monthName = function(date) {
         return new Intl.DateTimeFormat("es", { month: "long", year: "numeric" }).format(date);
     };
-    const makePeriod = function(label, range, start, end) {
-        return {
-            label,
-            range,
-            entries: etaEntries.filter(function(entry) {
-                return entry.eta >= start && entry.eta <= end;
-            }).sort(function(a, b) {
-                return a.eta - b.eta || a.fmr.localeCompare(b.fmr) || a.po.localeCompare(b.po);
-            })
-        };
+    const makePeriod = function(label, range, start, end, groupByPO = false) {
+        const inRange = etaEntries.filter(function(entry) {
+            return entry.eta >= start && entry.eta <= end;
+        }).sort(function(a, b) {
+            return a.eta - b.eta || a.fmr.localeCompare(b.fmr) || a.po.localeCompare(b.po);
+        });
+        if (!groupByPO) {
+            return { label, range, entries: inRange };
+        }
+
+        const grouped = new Map();
+        inRange.forEach(function(entry) {
+            const key = `${entry.fmr}|${entry.po}`;
+            if (grouped.has(key)) {
+                grouped.get(key).dates.push(entry.eta);
+            } else {
+                grouped.set(key, { ...entry, dates: [entry.eta] });
+            }
+        });
+        return { label, range, entries: [...grouped.values()] };
     };
     const etaPeriods = [
-        makePeriod("Semana presente", `${dateLabel(weekStart)} - ${dateLabel(weekEnd)}`, weekStart, weekEnd),
+        makePeriod("Semana presente", `${dateLabel(currentWeek.start)} - ${dateLabel(currentWeek.end)}`, currentWeek.start, currentWeek.end, true),
         makePeriod("Mes presente", monthName(monthStart), monthStart, new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)),
         makePeriod("Próximo mes", monthName(nextMonthStart), nextMonthStart, new Date(today.getFullYear(), today.getMonth() + 2, 0, 23, 59, 59, 999)),
         makePeriod("Próximos dos meses", `${monthName(nextMonthStart)} - ${monthName(new Date(today.getFullYear(), today.getMonth() + 2, 1))}`, nextMonthStart, new Date(today.getFullYear(), today.getMonth() + 3, 0, 23, 59, 59, 999)),
@@ -286,21 +312,11 @@ function buildModel(workbook) {
     ];
 
     const weeklyEta = Array.from({ length: 3 }, function(_, index) {
-        const start = new Date(weekStart);
-        start.setDate(weekStart.getDate() + index * 7);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 6);
-        end.setHours(23, 59, 59, 999);
-        const poKeys = new Set();
-        etaEntries.forEach(function(entry) {
-            if (entry.eta >= start && entry.eta <= end) {
-                poKeys.add(`${entry.fmr}|${entry.po}`);
-            }
-        });
+        const { start, end } = weekRange(index);
         return {
             label: index === 0 ? "Semana actual" : (index === 1 ? "Próxima semana" : "Semana subsiguiente"),
             range: `${dateLabel(start)} - ${dateLabel(end)}`,
-            count: poKeys.size
+            count: makePeriod("", "", start, end, true).entries.length
         };
     });
     weeklyEta.push({ label: "Sin ETA", range: "", count: etaPeriods[4].entries.length, noEta: true });
@@ -484,7 +500,8 @@ function renderEtaPeriods(periods) {
             if (period.noEta) {
                 return `<li class="no-eta-entry"><span><strong>${escapeHtml(entry.fmr)}</strong><small>PO ${escapeHtml(entry.po)}</small></span></li>`;
             }
-            return `<li><time>${dateLabel(entry.eta)}</time><span><strong>${escapeHtml(entry.fmr)}</strong><small>PO ${escapeHtml(entry.po)}</small></span></li>`;
+            const dates = (entry.dates || [entry.eta]).map(dateLabel).join("<br>");
+            return `<li><time>${dates}</time><span><strong>${escapeHtml(entry.fmr)}</strong><small>PO ${escapeHtml(entry.po)}</small></span></li>`;
         }).join("");
         return `<article class="eta-period-card">
             <header><div><h3>${escapeHtml(period.label)}</h3><p>${escapeHtml(period.range)}</p></div><strong class="eta-count">${period.entries.length}</strong></header>
@@ -532,14 +549,15 @@ function renderSubsystemImpact(items, totals) {
         return `<div class="impact-summary-item"><strong>${item.value}</strong><span>${item.label}</span></div>`;
     }).join("");
 
-    document.getElementById("subsystem-impact-list").innerHTML = items.map(function(item) {
-        return `<article class="subsystem-impact-row">
+    impactItems = items;
+    subsystemImpactList.innerHTML = items.map(function(item, index) {
+        return `<article class="subsystem-impact-row" role="button" tabindex="0" aria-haspopup="dialog" data-index="${index}">
             <div class="impact-row-heading">
                 <div><h3>${escapeHtml(item.subsystem)}</h3><p>${item.total} FMR asociadas</p></div>
                 <strong class="impact-percent">${item.coveragePercent}%<small>cobertura</small></strong>
             </div>
             <div class="impact-progress" role="progressbar" aria-label="Cobertura estimada de ${escapeHtml(item.subsystem)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${item.coveragePercent}"><span style="width:${item.coveragePercent}%"></span></div>
-            <div class="impact-breakdown"><span>${item.arrived} recibidas</span><span>${item.partial} parciales</span><span>${item.pending} pendientes</span></div>
+            <div class="impact-breakdown"><span>${item.arrived} On Site</span><span>${item.partial} parciales</span><span>${item.pending} pendientes</span></div>
             <p class="impact-risk">Impacto pendiente: <strong>${item.impactPercent}%</strong>${item.withoutEta ? ` · ${item.withoutEta} sin ETA` : ""}</p>
         </article>`;
     }).join("") || '<p class="panel-caption">No hay SubSistemas asociados a FMR en el archivo.</p>';
@@ -572,6 +590,64 @@ function renderDashboard(model, filename) {
     renderEtaWeekChart(model.weeklyEta);
     renderSubsystemImpact(model.subsystemImpact, model.subsystemImpactTotals);
 }
+
+function openSubsystemModal(index) {
+    const item = impactItems[index];
+    if (!item) {
+        return;
+    }
+
+    const groups = [
+        { key: "onSite", label: "On Site" },
+        { key: "partial", label: "Parciales" },
+        { key: "pending", label: "Pendientes" }
+    ];
+    subsystemModalTitle.textContent = item.subsystem;
+    subsystemModalSubtitle.textContent = `${item.total} FMR asociadas · ${item.coveragePercent}% de cobertura`;
+    subsystemModalBody.innerHTML = groups.map(function(group) {
+        const records = item.details.filter(function(detail) {
+            return detail.category === group.key;
+        }).sort(function(a, b) {
+            return a.fmr.localeCompare(b.fmr) || a.po.localeCompare(b.po);
+        });
+        const rows = records.map(function(record) {
+            return `<tr><td><strong>${escapeHtml(record.fmr)}</strong></td><td>${escapeHtml(record.po)}</td></tr>`;
+        }).join("");
+        return `<section class="subsystem-modal-group">
+            <h3>${group.label}<span>${records.length} PO</span></h3>
+            ${rows ? `<div class="subsystem-modal-scroll"><table><thead><tr><th>FMR</th><th>PO</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="eta-empty">Sin PO en esta categoría.</p>'}
+        </section>`;
+    }).join("");
+
+    if (!subsystemModal.open) {
+        subsystemModal.showModal();
+    }
+}
+
+subsystemImpactList.addEventListener("click", function(event) {
+    const row = event.target.closest(".subsystem-impact-row");
+    if (row) {
+        openSubsystemModal(Number(row.dataset.index));
+    }
+});
+
+subsystemImpactList.addEventListener("keydown", function(event) {
+    const row = event.target.closest(".subsystem-impact-row");
+    if (row && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        openSubsystemModal(Number(row.dataset.index));
+    }
+});
+
+subsystemModal.addEventListener("click", function(event) {
+    if (event.target === subsystemModal) {
+        subsystemModal.close();
+    }
+});
+
+document.getElementById("subsystem-modal-close").addEventListener("click", function() {
+    subsystemModal.close();
+});
 
 async function procesarDashboardLocal(buffer, filename, guardar = true) {
     statusMessage.textContent = "Leyendo el archivo localmente...";

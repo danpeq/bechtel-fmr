@@ -77,7 +77,7 @@
                     <div class="eta-week-heading">
                         <span class="section-kicker">PLANIFICACIÓN DE ENTREGAS</span>
                         <h3 id="eta-week-title">PO con ETA por semana</h3>
-                        <p>Semana actual y dos próximas · viernes a jueves</p>
+                        <p>Semana actual y dos próximas · sábado a viernes</p>
                     </div>
                     <div id="eta-week-chart" class="eta-week-chart" aria-label="Cantidad de PO con ETA por semana y PO sin ETA"></div>
                 </section>
@@ -120,6 +120,17 @@
                 <div id="subsystem-impact-summary" class="impact-summary"></div>
                 <div id="subsystem-impact-list" class="subsystem-impact-list"></div>
             </section>
+
+            <dialog id="subsystem-modal" class="subsystem-modal" aria-labelledby="subsystem-modal-title">
+                <header class="subsystem-modal-header">
+                    <div>
+                        <h2 id="subsystem-modal-title"></h2>
+                        <p id="subsystem-modal-subtitle"></p>
+                    </div>
+                    <button type="button" id="subsystem-modal-close" class="subsystem-modal-close" aria-label="Cerrar">Cerrar</button>
+                </header>
+                <div id="subsystem-modal-body" class="subsystem-modal-body"></div>
+            </dialog>
         </section>
     </main>
 
