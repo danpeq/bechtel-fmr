@@ -101,7 +101,22 @@ h2 { margin-bottom: 0; font-size: 22px; line-height: 1.1; font-weight: 600; }
 .eta-week-heading { margin-bottom: 16px; }
 .eta-week-heading h3 { margin: 0 0 5px; font: 700 16px "Trebuchet MS", Arial, sans-serif; }
 .eta-week-heading p { margin: 0; color: var(--muted); font: 12px "Trebuchet MS", Arial, sans-serif; }
-.eta-week-chart { max-width: 920px; }
+.eta-week-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.eta-week-chart { max-width: none; }
+.express-material-section { display: flex; flex-direction: column; }
+.express-material-title { margin: 0 0 12px; font: 700 14px "Trebuchet MS", Arial, sans-serif; color: var(--text); }
+.express-material-container { display: grid; gap: 14px; }
+.express-material-group { border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.express-material-group h4 { display: flex; justify-content: space-between; align-items: center; margin: 0; padding: 12px 14px; background: #f6faf8; font: 700 13px "Trebuchet MS", Arial, sans-serif; border-bottom: 1px solid var(--line); }
+.record-count { color: var(--muted); font: 400 11px "Trebuchet MS", Arial, sans-serif; }
+.express-material-scroll { max-height: 200px; overflow-y: auto; }
+.express-material-scroll table { width: 100%; border-collapse: collapse; }
+.express-material-scroll th { position: sticky; top: 0; padding: 8px 10px; background: var(--panel); box-shadow: 0 1px 0 var(--line); font: 700 10px "Trebuchet MS", Arial, sans-serif; text-align: left; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.express-material-scroll td { padding: 8px 10px; border-top: 1px solid #edf0ed; font: 11px "Trebuchet MS", Arial, sans-serif; }
+.express-material-scroll th:nth-child(1) { width: 20%; }
+.express-material-scroll th:nth-child(2) { width: 15%; }
+.express-material-scroll th:nth-child(3) { width: 65%; }
+.table-desc { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .eta-chart-y-title { margin: 0 0 6px 42px; color: var(--muted); font: 11px "Trebuchet MS", Arial, sans-serif; }
 .eta-chart-layout { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
 .eta-chart-y-axis { display: flex; height: 180px; flex-direction: column; justify-content: space-between; padding-bottom: 1px; color: var(--muted); text-align: right; font: 10px "Trebuchet MS", Arial, sans-serif; }
@@ -178,6 +193,7 @@ td { padding: 13px 12px; border-top: 1px solid var(--line); white-space: nowrap;
     .metric-grid { grid-template-columns: repeat(2, 1fr); }
     .dashboard-grid-main, .dashboard-grid-secondary { grid-template-columns: 1fr; }
     .eta-period-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .eta-week-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {

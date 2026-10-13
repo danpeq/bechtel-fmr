@@ -321,6 +321,45 @@ function buildModel(workbook) {
     });
     weeklyEta.push({ label: "Sin ETA", range: "", count: etaPeriods[4].entries.length, noEta: true });
 
+    const expressMaterialPermanent = Array.from({ length: 4 }, function(_, index) {
+        let range, start, end;
+        if (index < 3) {
+            const { start: s, end: e } = weekRange(index);
+            start = s;
+            end = e;
+            range = `${dateLabel(start)} - ${dateLabel(end)}`;
+        } else {
+            start = new Date(2099, 0, 1);
+            end = start;
+            range = "Sin ETA";
+        }
+
+        const records = [];
+        const seen = new Set();
+        (index < 3 ? etaEntries : etaPeriods[4].entries).forEach(function(entry) {
+            const match = index < 3 ? (entry.eta >= start && entry.eta <= end) : true;
+            if (!match) return;
+
+            const key = `${entry.fmr}|${entry.po}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+
+            const fmrData = poRecords.get(`${entry.fmr}|${entry.po}`);
+            if (!fmrData) return;
+
+            const fmr = text(entry.fmr);
+            const desc = unique(fmrData.rows.map(function(row) { return row.DESCRIPCION; })).join(" · ");
+            const isExpress = fmr.toUpperCase().includes("EXPRESS");
+            const isMaterialPermanente = desc.toUpperCase().includes("MATERIAL PERMANENTE");
+
+            if (isExpress || isMaterialPermanente) {
+                records.push({ fmr: entry.fmr, po: entry.po, description: desc });
+            }
+        });
+
+        return { label: index === 0 ? "Semana actual" : (index === 1 ? "Próxima semana" : (index === 2 ? "Semana subsiguiente" : "Sin ETA")), records };
+    });
+
     const poKeys = unique(poRows.map(function(item) {
         return `${text(item.row.FMR)}|${item.po}`;
     }));
@@ -390,6 +429,7 @@ function buildModel(workbook) {
         deliveryDetails,
         etaPeriods,
         weeklyEta,
+        expressMaterialPermanent,
         subsystemImpact: subsystemImpact.items,
         subsystemImpactTotals: subsystemImpact.totals
     };
@@ -539,6 +579,19 @@ function renderEtaWeekChart(items) {
         </div>`;
 }
 
+function renderExpressMaterialPermanentTable(data) {
+    const target = document.getElementById("express-material-table");
+    target.innerHTML = data.map(function(group) {
+        const rows = group.records.map(function(record) {
+            return `<tr><td><strong>${escapeHtml(record.fmr)}</strong></td><td>${escapeHtml(record.po)}</td><td><span class="table-desc" title="${escapeHtml(record.description)}">${escapeHtml(record.description)}</span></td></tr>`;
+        }).join("");
+        return `<div class="express-material-group">
+            <h4>${group.label}<span class="record-count">${group.records.length}</span></h4>
+            ${rows ? `<div class="express-material-scroll"><table><thead><tr><th>FMR</th><th>PO</th><th>Descripción</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="eta-empty">Sin registros en esta semana.</p>'}
+        </div>`;
+    }).join("");
+}
+
 function renderSubsystemImpact(items, totals) {
     document.getElementById("subsystem-impact-summary").innerHTML = [
         { value: `${totals.coveragePercent}%`, label: "Cobertura estimada" },
@@ -564,7 +617,7 @@ function renderSubsystemImpact(items, totals) {
 }
 
 function renderDashboard(model, filename) {
-    const totalNoEta = model.delivery.noEta;
+    const totalNoEta = model.etaPeriods[4].entries.length;
     const totalFuture = model.delivery.futureEta;
     const statusItems = Object.entries(model.statusCounts).map(function([label, count]) { return { label, count }; }).sort(function(a, b) { return b.count - a.count; });
     document.getElementById("metric-fmr").textContent = model.fmrs.length;
@@ -588,6 +641,7 @@ function renderDashboard(model, filename) {
     renderDelivery(model.delivery, model.deliveryDetails, model.poCount);
     renderEtaPeriods(model.etaPeriods);
     renderEtaWeekChart(model.weeklyEta);
+    renderExpressMaterialPermanentTable(model.expressMaterialPermanent);
     renderSubsystemImpact(model.subsystemImpact, model.subsystemImpactTotals);
 }
 

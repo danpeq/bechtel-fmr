@@ -1,0 +1,9 @@
+# Use this workspace to collaborate
+workspace:
+  id: 0a806032-dbde-4a49-8089-83c2c1a52eb0
+
+localResources:
+  specs:
+    - ../entorno/Lib/site-packages/jupyterlab_server/rest-api.yml
+    - ../entorno/Lib/site-packages/jupyter_server_terminals/rest-api.yml
+    - ../entorno/Lib/site-packages/jupyter_server/services/api/api.yaml
