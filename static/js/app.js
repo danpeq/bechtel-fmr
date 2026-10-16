@@ -48,6 +48,9 @@ const listaPO = document.getElementById("lista-po");
 const listaProcurement = document.getElementById("lista-procurement");
 const estadoCarga = document.getElementById("estado-carga");
 const archivoExcel = document.getElementById("archivo-excel");
+const criticidadSection = document.getElementById("criticidad-section");
+const tablaCriticidadAlta = document.getElementById("tabla-criticidad-alta");
+const tablaCriticidadMedia = document.getElementById("tabla-criticidad-media");
 
 infoSubsistema.style.display = "none";
 resultadoFMRSearch.style.display = "none";
@@ -317,9 +320,19 @@ function crearBoton(textoBoton, clase, color, alClick) {
     return boton;
 }
 
-function cargarTodasLasFMR() {
+function cargarTodasLasFMR(filtro3week = "") {
     listaFMRsGeneral.innerHTML = "";
-    estado.fmrs.forEach(function(fmr) {
+    const fmrsFiltradasPor3week = filtro3week 
+        ? estado.normalizado.filter(function(fila) {
+            return fechaTexto(fila["3week"]) === filtro3week;
+        }).map(function(fila) { return texto(fila.FMR); })
+        : [];
+    
+    const fmrsAMostrar = filtro3week 
+        ? valoresUnicos(fmrsFiltradasPor3week)
+        : estado.fmrs;
+    
+    fmrsAMostrar.forEach(function(fmr) {
         listaFMRsGeneral.appendChild(crearBotonFMRGeneral(fmr));
     });
 }
@@ -330,6 +343,116 @@ function crearBotonFMRGeneral(fmr) {
         fmrSearch.value = fmr;
         buscarFMR(fmr);
     });
+}
+
+function calcularCriticidad(fmr, po, fecha3week) {
+    const filas = estado.detalle.filter(function(fila) {
+        return fila.FMR === fmr && fila.PO === po;
+    });
+
+    if (filas.length === 0) {
+        return null;
+    }
+
+    const fecha3weekObj = fecha(fecha3week);
+    if (!fecha3weekObj) {
+        return null;
+    }
+
+    let maxFechaETA = null;
+    let tieneOnSite = false;
+
+    filas.forEach(function(fila) {
+        const estadoOnSite = texto(fila["ON SITE"]).toLowerCase();
+        if (estadoOnSite === "on site") {
+            tieneOnSite = true;
+        }
+
+        texto(fila.ETA).replace(/[;\n]/g, ",").split(",").filter(Boolean).forEach(function(valor) {
+            const fechaETA = fecha(valor);
+            if (fechaETA && (!maxFechaETA || fechaETA > maxFechaETA)) {
+                maxFechaETA = fechaETA;
+            }
+        });
+    });
+
+    if (!maxFechaETA) {
+        return null;
+    }
+
+    if (maxFechaETA > fecha3weekObj) {
+        return "alta";
+    }
+
+    if (maxFechaETA <= fecha3weekObj && !tieneOnSite) {
+        return "media";
+    }
+
+    return null;
+}
+
+function renderizarTablasCriticidad(fecha3week) {
+    const fecha3weekObj = fecha(fecha3week);
+    if (!fecha3weekObj) {
+        criticidadSection.style.display = "none";
+        return;
+    }
+
+    const criticasAltas = [];
+    const criticasMedias = [];
+
+    // Filtrar solo las filas que tengan la fecha 3week seleccionada
+    const filasConFecha3week = estado.normalizado.filter(function(fila) {
+        return fechaTexto(fila["3week"]) === fecha3week;
+    });
+
+    // Obtener relaciones únicas de las filas filtradas (deduplicar por FMR|PO)
+    const relacionesFiltradas = filasConFecha3week.map(function(fila) {
+        const fmr = texto(fila.FMR);
+        const pos = separarPO(fila.PO);
+        return pos.map(function(po) {
+            return { fmr, po };
+        });
+    }).flat().map(function(item) {
+        return JSON.stringify(item);
+    }).filter(function(value, index, self) {
+        return self.indexOf(value) === index;
+    }).map(function(item) {
+        return JSON.parse(item);
+    });
+
+    relacionesFiltradas.forEach(function(relacion) {
+        const criticidad = calcularCriticidad(relacion.fmr, relacion.po, fecha3week);
+        if (criticidad === "alta") {
+            criticasAltas.push(relacion);
+        } else if (criticidad === "media") {
+            criticasMedias.push(relacion);
+        }
+    });
+
+    const mostrarCriticidad = criticasAltas.length > 0 || criticasMedias.length > 0;
+    criticidadSection.style.display = mostrarCriticidad ? "block" : "none";
+
+    function renderizarTabla(datos, elementoTabla, elementoConteo) {
+        const tbody = elementoTabla.querySelector("tbody");
+        tbody.innerHTML = "";
+        document.getElementById(elementoConteo).textContent = datos.length;
+
+        datos.forEach(function(item) {
+            const fila = estado.detalle.find(function(d) {
+                return d.FMR === item.fmr && d.PO === item.po && fechaTexto(d["3week"]) === fecha3week;
+            });
+
+            if (fila) {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${escaparHTML(fila.SubSistema)}</td><td>${escaparHTML(fila.FMR)}</td><td>${escaparHTML(fila.PO)}</td><td>${escaparHTML(fila.DESCRIPCION || "")}</td>`;
+                tbody.appendChild(tr);
+            }
+        });
+    }
+
+    renderizarTabla(criticasAltas, tablaCriticidadAlta, "count-alta");
+    renderizarTabla(criticasMedias, tablaCriticidadMedia, "count-media");
 }
 
 function buscarFMRPorDescripcion() {
@@ -761,12 +884,16 @@ threeweekSelect.addEventListener("change", function() {
     threeweekSeleccionado = this.value.trim();
     if (!threeweekSeleccionado) {
         limpiarPantalla();
+        criticidadSection.style.display = "none";
+        cargarTodasLasFMR();
         return;
     }
     fmrSearch.value = "";
     resultadoFMRSearch.style.display = "none";
     detalleFMR.style.display = "none";
-    cargarSubsistemas3Week(threeweekSeleccionado);
+    cargarTodasLasFMR(threeweekSeleccionado);
+    renderizarTablasCriticidad(threeweekSeleccionado);
+    criticidadSection.style.display = "block";
 });
 
 fmrSearch.addEventListener("keydown", function(event) {

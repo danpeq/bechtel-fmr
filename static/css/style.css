@@ -1051,6 +1051,92 @@ header h1 {
     border-radius: 3px;
 }
 
+/* Criticidad Section */
+.criticidad-section {
+    margin-top: 24px;
+    padding: 16px;
+    border: 1px solid #cfd4da;
+    border-radius: 8px;
+    background-color: #ffffff;
+}
+
+.criticidad-title {
+    margin: 0 0 16px;
+    font: 700 14px Arial, sans-serif;
+    color: #222;
+}
+
+.criticidad-tables-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.criticidad-table-container {
+    border: 1px solid #cfd4da;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.criticidad-subtitle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0;
+    padding: 12px 14px;
+    background: #f6faf8;
+    font: 700 13px Arial, sans-serif;
+    border-bottom: 1px solid #cfd4da;
+}
+
+.criticidad-count {
+    color: #999;
+    font: 400 11px Arial, sans-serif;
+    background: #e8ede9;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.criticidad-table-scroll {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.criticidad-table {
+    width: 100%;
+    border-collapse: collapse;
+    font: 11px Arial, sans-serif;
+}
+
+.criticidad-table th {
+    position: sticky;
+    top: 0;
+    padding: 8px 10px;
+    background: #ffffff;
+    box-shadow: 0 1px 0 #cfd4da;
+    font: 700 10px Arial, sans-serif;
+    text-align: left;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.criticidad-table td {
+    padding: 8px 10px;
+    border-top: 1px solid #edf0ed;
+    word-break: break-word;
+}
+
+.criticidad-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+@media (max-width: 900px) {
+    .criticidad-tables-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
 .carga-datos {
     display: flex;
     align-items: center;
